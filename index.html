@@ -92,12 +92,18 @@ textarea{resize:vertical;min-height:64px}
 .btn-claro{background:#fff;border:1.5px solid var(--linha);color:var(--tinta)}
 .btn-claro:hover{border-color:var(--laranja);color:var(--laranja-esc)}
 
-/* ===== Filtros (em cima da lista) ===== */
-.filtros{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-@media(min-width:900px){.filtros{grid-template-columns:repeat(5,1fr)}.filtros .busca{grid-column:span 3}}
-@media(max-width:899px){.filtros .busca{grid-column:1/-1}}
-.acoes-lista{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.acoes-lista .btn{flex:1;min-width:140px;padding:11px 14px;font-size:13.5px}
+/* ===== Barra de filtros compacta (em cima da tabela) ===== */
+.barra-filtros{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--papel);
+  border:1px solid var(--linha);border-radius:12px;padding:8px 10px;margin-bottom:10px;box-shadow:var(--sombra)}
+.barra-filtros input,.barra-filtros select{width:auto;padding:6px 8px;font-size:12.5px;border-radius:8px;border:1.5px solid var(--linha)}
+.barra-filtros input[type=date]{max-width:130px}
+.f-sep{font-size:11.5px;color:var(--cinza);font-weight:600}
+.f-espaco{flex:1}
+.f-btn{border:1.5px solid var(--linha);background:#fff;color:var(--tinta);border-radius:8px;
+  padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.f-btn:hover{border-color:var(--laranja);color:var(--laranja-esc)}
+.f-btn.f-verde{color:var(--verde)} .f-btn.f-verm{color:var(--erro)}
+@media(max-width:700px){.f-espaco{display:none}}
 
 /* ===== Totais ===== */
 .totais{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
@@ -139,6 +145,17 @@ tfoot td.num{text-align:right}
 @keyframes g{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){.spin{animation-duration:2s}#toast{transition:none}}
 .aviso-config{background:#FFF6E5;border:1.5px solid #E8C87A;border-radius:12px;padding:12px 14px;font-size:13.5px;color:#7A5A10;margin-bottom:14px;display:none}
+
+/* ===== Visualizador de foto ampliada ===== */
+.lightbox{display:none;position:fixed;inset:0;background:rgba(20,12,5,.88);z-index:200;
+  align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;cursor:zoom-out}
+.lightbox.aberta{display:flex}
+.lightbox img{max-width:96vw;max-height:82vh;border-radius:12px;box-shadow:0 10px 50px rgba(0,0,0,.6);cursor:default}
+.lightbox .lb-acoes{display:flex;gap:10px}
+.lightbox .lb-btn{border:none;border-radius:10px;padding:10px 16px;font-family:'Archivo';font-weight:700;
+  font-size:13.5px;cursor:pointer;background:#fff;color:var(--tinta)}
+.lightbox .lb-btn.fechar{background:var(--laranja);color:#fff}
+.lightbox .lb-erro{color:#fff;font-size:14px;text-align:center;display:none}
 </style>
 </head>
 <body>
@@ -249,58 +266,21 @@ tfoot td.num{text-align:right}
 <!-- ==================== LANÇAMENTOS (PC) ==================== -->
 <section class="painel" id="painelLista">
 
-  <div class="cartao">
-    <h2><span class="tag">🔎</span> Filtros</h2>
-    <div class="filtros">
-      <div class="busca">
-        <label for="fBusca">Buscar (código, produto, obs, sequência venda, nº transferência)</label>
-        <input type="search" id="fBusca" placeholder="Digite para filtrar..." oninput="renderLista()">
-      </div>
-      <div>
-        <label for="fDataDe">Data de</label>
-        <input type="date" id="fDataDe" onchange="renderLista()">
-      </div>
-      <div>
-        <label for="fDataAte">Data até</label>
-        <input type="date" id="fDataAte" onchange="renderLista()">
-      </div>
-      <div>
-        <label for="fOrigem">Loja origem</label>
-        <select id="fOrigem" onchange="renderLista()"><option value="">Todas</option></select>
-      </div>
-      <div>
-        <label for="fDestino">Loja destino</label>
-        <select id="fDestino" onchange="renderLista()"><option value="">Todas</option></select>
-      </div>
-      <div>
-        <label for="fPagamento">Forma de pagamento</label>
-        <select id="fPagamento" onchange="renderLista()"><option value="">Todas</option></select>
-      </div>
-      <div>
-        <label for="fTransf">Nº transf. estoque</label>
-        <select id="fTransf" onchange="renderLista()">
-          <option value="">Todos</option><option value="sim">Informado</option><option value="nao">Pendente</option>
-        </select>
-      </div>
-      <div>
-        <label for="fFoto">Com foto?</label>
-        <select id="fFoto" onchange="renderLista()">
-          <option value="">Todos</option><option value="sim">Com foto</option><option value="nao">Sem foto</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:flex-end">
-        <button class="btn btn-claro" style="width:100%;padding:11px" onclick="limparFiltros()">Limpar filtros</button>
-      </div>
-    </div>
-    <div class="acoes-lista">
-      <button class="btn btn-claro" onclick="carregarRegistros()">↺ Atualizar</button>
-      <button class="btn btn-claro" onclick="exportarExcel()">⬇ Relatório Excel</button>
-      <button class="btn btn-claro" onclick="exportarPDF()">⬇ Relatório PDF</button>
-    </div>
+  <div class="barra-filtros">
+    <input type="date" id="fDataDe" title="Data de" onchange="renderLista()">
+    <span class="f-sep">até</span>
+    <input type="date" id="fDataAte" title="Data até" onchange="renderLista()">
+    <select id="fOrigem" title="Loja origem" onchange="renderLista()"><option value="">Loja origem: todas</option></select>
+    <select id="fDestino" title="Loja destino" onchange="renderLista()"><option value="">Loja destino: todas</option></select>
+    <button class="f-btn" title="Limpar filtros" onclick="limparFiltros()">✕ Limpar</button>
+    <span class="f-espaco"></span>
+    <button class="f-btn" title="Recarregar da planilha" onclick="carregarRegistros()">↺</button>
+    <button class="f-btn f-verde" onclick="exportarExcel()">⬇ Excel</button>
+    <button class="f-btn f-verm" onclick="exportarPDF()">⬇ PDF</button>
   </div>
 
   <div class="totais">
-    <div class="total-box total-compra"><small>Total compras</small><b id="totCompra">R$ 0,00</b></div>
+    <div class="total-box total-compra"><small>Total produtos transferidos</small><b id="totCompra">R$ 0,00</b></div>
     <div class="total-box total-uber"><small>Total Uber</small><b id="totUber">R$ 0,00</b></div>
     <div class="total-box total-geral"><small>Total geral</small><b id="totGeral">R$ 0,00</b></div>
   </div>
@@ -312,6 +292,16 @@ tfoot td.num{text-align:right}
 <datalist id="sugLojas"></datalist>
 <datalist id="sugPagamentos"></datalist>
 <div id="toast"></div>
+
+<div class="lightbox" id="lightbox" onclick="fecharFoto(event)">
+  <img id="lightboxImg" alt="Foto da transferência" onclick="event.stopPropagation()"
+       onerror="this.style.display='none';document.getElementById('lbErro').style.display='block'">
+  <div class="lb-erro" id="lbErro">Não foi possível carregar a imagem aqui.<br>Use o botão abaixo para abrir no Drive.</div>
+  <div class="lb-acoes" onclick="event.stopPropagation()">
+    <button class="lb-btn" onclick="window.open(fotoAberta,'_blank')">Abrir no Drive</button>
+    <button class="lb-btn fechar" onclick="fecharFoto()">✕ Fechar</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -330,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (API_URL.indexOf('COLE_AQUI') === 0) document.getElementById('avisoConfig').style.display = 'block';
   document.getElementById('data').value = hojeISO();
   addItem();
+  memorizarValores(); // carrega lojas/pagamentos já salvos neste navegador
   carregarRegistros();
 });
 
@@ -343,18 +334,40 @@ function trocarAba(qual){
 }
 
 /* ---------- sugestões (lojas e pagamentos já usados) ---------- */
+function lerCache(chave){
+  try { return JSON.parse(localStorage.getItem(chave)) || []; } catch(e){ return []; }
+}
+function gravarCache(chave, lista){
+  try { localStorage.setItem(chave, JSON.stringify([...lista].sort())); } catch(e){}
+}
+
 function atualizarSugestoes(){
-  const lojas = new Set(), pags = new Set();
+  // une o que está na planilha com o que foi salvo neste navegador
+  const lojas = new Set(lerCache('miashop_lojas')), pags = new Set(lerCache('miashop_pagamentos'));
   registros.forEach(r=>{
     if(r.lojaOrigem) lojas.add(r.lojaOrigem);
     if(r.lojaDestino) lojas.add(r.lojaDestino);
     if(r.formaPagamento) pags.add(r.formaPagamento);
   });
+  gravarCache('miashop_lojas', lojas);
+  gravarCache('miashop_pagamentos', pags);
   document.getElementById('sugLojas').innerHTML = [...lojas].sort().map(l=>`<option value="${esc(l)}">`).join('');
   document.getElementById('sugPagamentos').innerHTML = [...pags].sort().map(p=>`<option value="${esc(p)}">`).join('');
-  preencherSelect('fOrigem', [...lojas].sort(), 'Todas');
-  preencherSelect('fDestino', [...lojas].sort(), 'Todas');
-  preencherSelect('fPagamento', [...pags].sort(), 'Todas');
+  preencherSelect('fOrigem', [...lojas].sort(), 'Loja origem: todas');
+  preencherSelect('fDestino', [...lojas].sort(), 'Loja destino: todas');
+}
+
+// registra imediatamente os valores digitados, para já aparecerem no próximo lançamento
+function memorizarValores(origem, destino, pagamento){
+  const lojas = new Set(lerCache('miashop_lojas'));
+  const pags = new Set(lerCache('miashop_pagamentos'));
+  if(origem) lojas.add(origem);
+  if(destino) lojas.add(destino);
+  if(pagamento) pags.add(pagamento);
+  gravarCache('miashop_lojas', lojas);
+  gravarCache('miashop_pagamentos', pags);
+  document.getElementById('sugLojas').innerHTML = [...lojas].sort().map(l=>`<option value="${esc(l)}">`).join('');
+  document.getElementById('sugPagamentos').innerHTML = [...pags].sort().map(p=>`<option value="${esc(p)}">`).join('');
 }
 
 function preencherSelect(id, valores, rotuloTodos){
@@ -413,12 +426,16 @@ function atualizarSoma(){
   let soma = 0, tem = false;
   document.querySelectorAll('#listaItens .item-card').forEach(l=>{
     const v = parseFloat(l.querySelector('.i-valor').value);
-    if(!isNaN(v)){ soma += v; tem = true; }
+    if(!isNaN(v)){
+      const q = parseFloat(l.querySelector('.i-qtd').value);
+      soma += v * (!isNaN(q) && q > 0 ? q : 1); // valor unitário × quantidade
+      tem = true;
+    }
   });
   const box = document.getElementById('somaItens');
   if(tem){
     box.style.display = 'block';
-    box.innerHTML = 'Soma dos produtos: <b>' + brl(soma) + '</b> · <button type="button" onclick="usarSoma(' + soma.toFixed(2) + ')">usar como valor da compra</button>';
+    box.innerHTML = 'Soma dos produtos (valor × qtd): <b>' + brl(soma) + '</b> · <button type="button" onclick="usarSoma(' + soma.toFixed(2) + ')">usar como valor da compra</button>';
   } else box.style.display = 'none';
 }
 function usarSoma(v){ document.getElementById('valorCompra').value = v; }
@@ -492,6 +509,7 @@ async function salvar(){
   try{
     const r = await api(payload);
     if(!r.ok) throw new Error(r.erro || 'Falha ao salvar.');
+    memorizarValores(origem, destino, payload.formaPagamento);
     toast(editandoId ? 'Lançamento atualizado ✓' : 'Lançamento salvo com sucesso ✓');
     cancelarEdicao(true);
     limparFormulario();
@@ -580,35 +598,22 @@ async function carregarRegistros(){
 
 /* ---------- filtros ---------- */
 function filtrar(){
-  const busca = document.getElementById('fBusca').value.toLowerCase().trim();
   const fo = document.getElementById('fOrigem').value;
   const fd = document.getElementById('fDestino').value;
-  const fp = document.getElementById('fPagamento').value;
-  const ft = document.getElementById('fTransf').value;
-  const ff = document.getElementById('fFoto').value;
   const de = document.getElementById('fDataDe').value;
   const ate = document.getElementById('fDataAte').value;
 
   return registros.filter(r=>{
-    if (fo && r.lojaOrigem !== fo) return false;
-    if (fd && r.lojaDestino !== fd) return false;
-    if (fp && r.formaPagamento !== fp) return false;
-    if (ft === 'sim' && !r.numTransferencia) return false;
-    if (ft === 'nao' && r.numTransferencia) return false;
-    if (ff === 'sim' && !r.fotoUrl) return false;
-    if (ff === 'nao' && r.fotoUrl) return false;
     if (de && r.data < de) return false;
     if (ate && r.data > ate) return false;
-    if (busca){
-      const alvo = [r.codigos,r.produtos,r.observacoes,r.numSequencia,r.numTransferencia,r.lojaOrigem,r.lojaDestino,r.formaPagamento].join(' ').toLowerCase();
-      if (alvo.indexOf(busca) === -1) return false;
-    }
+    if (fo && r.lojaOrigem !== fo) return false;
+    if (fd && r.lojaDestino !== fd) return false;
     return true;
   });
 }
 
 function limparFiltros(){
-  ['fBusca','fOrigem','fDestino','fPagamento','fTransf','fFoto','fDataDe','fDataAte'].forEach(id=>document.getElementById(id).value='');
+  ['fDataDe','fDataAte','fOrigem','fDestino'].forEach(id=>document.getElementById(id).value='');
   renderLista();
 }
 
@@ -618,10 +623,25 @@ const dataBR = iso => { if(!iso) return ''; const p=String(iso).split('-'); retu
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const multi = (s, mono) => String(s||'').split('\n').map(x=> mono ? `<span class="cod-mono">${esc(x)}</span>` : esc(x)).join('<br>');
 
+// total dos produtos transferidos do lançamento (valor unitário × quantidade)
+function totalProdutos(r){
+  const vals = (r.valores||'').split('\n');
+  const qtds = (r.quantidades||'').split('\n');
+  let soma = 0;
+  vals.forEach((v,i)=>{
+    const val = parseFloat(v);
+    if(!isNaN(val)){
+      const q = parseFloat(qtds[i]);
+      soma += val * (!isNaN(q) && q > 0 ? q : 1);
+    }
+  });
+  return soma;
+}
+
 function renderLista(){
   const dados = filtrar();
   let tCompra=0, tUber=0;
-  dados.forEach(r=>{ tCompra+=r.valorCompra; tUber+=r.valorUber; });
+  dados.forEach(r=>{ tCompra+=totalProdutos(r); tUber+=r.valorUber; });
   document.getElementById('totCompra').textContent = brl(tCompra);
   document.getElementById('totUber').textContent = brl(tUber);
   document.getElementById('totGeral').textContent = brl(tCompra+tUber);
@@ -646,14 +666,14 @@ function renderLista(){
       <td class="linha-itens">${multi(r.produtos)}</td>
       <td class="linha-itens" style="text-align:center">${multi(r.quantidades)}</td>
       <td class="linha-itens num">${valsFmt}</td>
-      <td class="num" style="color:var(--azul)">${brl(r.valorCompra)}</td>
+      <td class="num" style="color:var(--azul)">${brl(totalProdutos(r))}</td>
       <td class="num" style="color:var(--verde)">${brl(r.valorUber)}</td>
-      <td class="num"><b>${brl(r.valorCompra + r.valorUber)}</b></td>
+      <td class="num"><b>${brl(totalProdutos(r) + r.valorUber)}</b></td>
       <td class="nowrap">${esc(r.numSequencia) || '—'}</td>
       <td>${transf}</td>
       <td>${esc(r.formaPagamento) || '—'}</td>
       <td style="min-width:140px;max-width:220px">${esc(r.observacoes) || '—'}</td>
-      <td>${r.fotoUrl ? `<button class="acao-btn ft" onclick="window.open('${esc(r.fotoUrl)}','_blank')">📷 Ver</button>` : '—'}</td>
+      <td>${r.fotoUrl ? `<button class="acao-btn ft" onclick="verFoto('${esc(r.fotoUrl)}')">📷 Ver</button>` : '—'}</td>
       <td>
         <button class="acao-btn ed" onclick="iniciarEdicao('${r.id}')">✎ Editar</button>
         <button class="acao-btn ex" onclick="excluir('${r.id}')">🗑 Apagar</button>
@@ -666,7 +686,7 @@ function renderLista(){
     <table>
       <thead><tr>
         <th>Data</th><th>Loja origem</th><th>Loja destino</th><th>Código</th><th>Produto</th><th>Qtd</th>
-        <th>Valor produto</th><th>Compra</th><th>Uber</th><th>Total</th>
+        <th>Valor produto</th><th>Total produtos</th><th>Uber</th><th>Total</th>
         <th>Seq. venda</th><th>Transf. estoque</th><th>Pagamento</th><th>Observações</th><th>Foto</th><th>Ações</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
@@ -713,15 +733,16 @@ function linhasRelatorio(){
   const dados = filtrar();
   let tCompra=0,tUber=0;
   const linhas = dados.map(r=>{
-    tCompra+=r.valorCompra; tUber+=r.valorUber;
+    const tp = totalProdutos(r);
+    tCompra+=tp; tUber+=r.valorUber;
     return [ dataBR(r.data), r.lojaOrigem, r.lojaDestino,
       r.codigos.replace(/\n/g,' | '), r.produtos.replace(/\n/g,' | '),
       r.quantidades.replace(/\n/g,' | '), (r.valores||'').replace(/\n/g,' | '),
-      r.valorCompra, r.valorUber, r.valorCompra + r.valorUber,
+      tp, r.valorUber, tp + r.valorUber,
       r.numSequencia, r.numTransferencia, r.formaPagamento, r.observacoes, r.fotoUrl ];
   });
   linhas.push(['','','','','','','TOTAIS', tCompra, tUber, tCompra+tUber, '', '', '', '', '']);
-  return { cab:['Data','Loja Origem','Loja Destino','Códigos','Produtos','Quantidades','Valores Produtos (R$)','Valor Compra (R$)','Valor Uber (R$)','Total Linha (R$)','Sequência Venda','Nº Transf. Estoque','Pagamento','Observações','Foto'], linhas, tCompra, tUber };
+  return { cab:['Data','Loja Origem','Loja Destino','Códigos','Produtos','Quantidades','Valores Produtos (R$)','Total Produtos (R$)','Valor Uber (R$)','Total Linha (R$)','Sequência Venda','Nº Transf. Estoque','Pagamento','Observações','Foto'], linhas, tCompra, tUber };
 }
 
 function exportarExcel(){
@@ -743,7 +764,7 @@ function exportarPDF(){
   doc.text('— Transferências de Produtos via Uber', 34, 14);
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') +
-           '   |   Total compras: ' + brl(tCompra) + '   |   Total Uber: ' + brl(tUber) +
+           '   |   Total produtos: ' + brl(tCompra) + '   |   Total Uber: ' + brl(tUber) +
            '   |   Total geral: ' + brl(tCompra+tUber), 14, 20);
   const corpo = linhas.map(l => l.map((c,i)=> (i>=7 && i<=9 && c!=='') ? brl(c) : String(c||'')));
   doc.autoTable({
@@ -754,6 +775,28 @@ function exportarPDF(){
   });
   doc.save('Miashop_Transferencias_Uber_' + hojeISO() + '.pdf');
 }
+
+/* ---------- visualizador de foto ampliada ---------- */
+let fotoAberta = '';
+function verFoto(url){
+  fotoAberta = url;
+  // usa o endpoint de miniatura do Drive em alta resolução (carrega direto na página)
+  const m = url.match(/id=([A-Za-z0-9_-]+)/);
+  const src = m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600' : url;
+  const img = document.getElementById('lightboxImg');
+  img.style.display = 'block';
+  document.getElementById('lbErro').style.display = 'none';
+  img.src = src;
+  document.getElementById('lightbox').classList.add('aberta');
+  document.body.style.overflow = 'hidden';
+}
+function fecharFoto(ev){
+  if (ev && ev.target !== document.getElementById('lightbox')) return;
+  document.getElementById('lightbox').classList.remove('aberta');
+  document.getElementById('lightboxImg').src = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharFoto(); });
 
 /* ---------- toast ---------- */
 let toastTimer;
