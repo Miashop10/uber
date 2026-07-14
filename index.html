@@ -74,9 +74,11 @@ textarea{resize:vertical;min-height:64px}
 .soma-itens button{border:none;background:none;color:var(--laranja-esc);font-weight:700;cursor:pointer;font-size:13px;text-decoration:underline;padding:0}
 
 /* foto */
-.foto-zona{border:2px dashed var(--laranja);border-radius:12px;padding:18px 14px;text-align:center;cursor:pointer;background:var(--laranja-claro)}
-.foto-zona strong{color:var(--laranja-esc);font-size:15px}
-.foto-zona small{display:block;color:var(--cinza);margin-top:4px}
+.foto-botoes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.foto-opcao{border:2px dashed var(--laranja);border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:var(--laranja-claro);font:inherit}
+.foto-opcao strong{display:block;color:var(--laranja-esc);font-size:14.5px;margin-top:4px}
+.foto-opcao small{display:block;color:var(--cinza);margin-top:3px;font-size:11.5px}
+.foto-opcao:active{background:#FCE4CB}
 #fotoPreviewWrap{display:none;margin-top:10px;position:relative}
 #fotoPreview{max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--linha)}
 #btnRemFoto{position:absolute;top:6px;left:6px;background:var(--erro);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer}
@@ -190,11 +192,19 @@ tfoot td.num{text-align:right}
 
   <div class="cartao">
     <h2><span class="tag">1</span> Foto</h2>
-    <div class="foto-zona" onclick="document.getElementById('inputFoto').click()">
-      📷 <strong>Tirar foto ou escolher da galeria</strong>
-      <small>Comprovante do Uber, produto ou nota — salva direto no Google Drive</small>
+    <div class="foto-botoes">
+      <button type="button" class="foto-opcao" onclick="document.getElementById('inputFoto').click()">
+        📷 <strong>Tirar foto</strong>
+        <small>Abre a câmera</small>
+      </button>
+      <button type="button" class="foto-opcao" onclick="document.getElementById('inputGaleria').click()">
+        🖼️ <strong>Galeria / prints</strong>
+        <small>Fotos salvas no celular</small>
+      </button>
     </div>
+    <small style="display:block;text-align:center;color:var(--cinza);margin-top:8px">Comprovante do Uber, produto, nota ou print — salva direto no Google Drive</small>
     <input type="file" id="inputFoto" accept="image/*" capture="environment" hidden onchange="carregarFoto(this)">
+    <input type="file" id="inputGaleria" accept="image/*" hidden onchange="carregarFoto(this)">
     <div id="fotoPreviewWrap">
       <img id="fotoPreview" alt="Pré-visualização da foto">
       <button type="button" id="btnRemFoto" onclick="removerFoto()">✕ Remover</button>
@@ -461,7 +471,9 @@ function carregarFoto(input){
   leitor.readAsDataURL(arq);
 }
 function removerFoto(){
-  fotoBase64=''; document.getElementById('inputFoto').value='';
+  fotoBase64='';
+  document.getElementById('inputFoto').value='';
+  document.getElementById('inputGaleria').value='';
   document.getElementById('fotoPreviewWrap').style.display='none';
 }
 function removerFotoAtual(){
