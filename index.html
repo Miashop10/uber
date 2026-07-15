@@ -183,7 +183,7 @@ tfoot td.num{text-align:right}
 </div>
 
 <!-- ==================== NOVO LANÇAMENTO (celular) ==================== -->
-<section class="painel ativo" id="painelNovo">
+<section class="painel ativo" id="painelNovo" autocomplete="off">
 
   <div class="banner-edicao" id="bannerEdicao">
     <span>✎ <b>Editando lançamento</b> — <span id="bannerEdicaoInfo"></span></span>
@@ -221,12 +221,12 @@ tfoot td.num{text-align:right}
     <div class="rota-form">
       <div>
         <label for="lojaOrigem">Loja de origem (saiu de)</label>
-        <input type="text" id="lojaOrigem" list="sugLojas" placeholder="Digite a loja">
+        <input type="text" id="lojaOrigem" autocomplete="off" list="sugLojas" placeholder="Digite a loja">
       </div>
       <div class="rota-seta">→</div>
       <div>
         <label for="lojaDestino">Loja de destino (foi para)</label>
-        <input type="text" id="lojaDestino" list="sugLojas" placeholder="Digite a loja">
+        <input type="text" id="lojaDestino" autocomplete="off" list="sugLojas" placeholder="Digite a loja">
       </div>
     </div>
     <div class="grade" style="margin-top:12px">
@@ -236,11 +236,11 @@ tfoot td.num{text-align:right}
       </div>
       <div>
         <label for="numSequencia">Sequência venda</label>
-        <input type="text" id="numSequencia" inputmode="numeric" placeholder="Nº da sequência">
+        <input type="text" id="numSequencia" autocomplete="off" inputmode="numeric" placeholder="Nº da sequência">
       </div>
       <div class="cheio">
         <label for="formaPagamento">Forma de pagamento do Uber</label>
-        <input type="text" id="formaPagamento" list="sugPagamentos" placeholder="Digite a forma de pagamento">
+        <input type="text" id="formaPagamento" autocomplete="off" list="sugPagamentos" placeholder="Digite a forma de pagamento">
       </div>
     </div>
   </div>
@@ -394,11 +394,11 @@ function addItem(cod, nome, qtd, val){
   div.innerHTML =
     `<div class="campo-nome">
        <label>Nome do produto</label>
-       <input type="text" class="i-nome" placeholder="Nome do produto">
+       <input type="text" class="i-nome" placeholder="Nome do produto" autocomplete="off">
      </div>
      <div>
        <label>Código</label>
-       <input type="text" class="i-cod" placeholder="Código">
+       <input type="text" class="i-cod" placeholder="Código" autocomplete="off">
      </div>
      <div>
        <label>Qtd</label>
@@ -459,12 +459,12 @@ function carregarFoto(input){
   const leitor = new FileReader();
   leitor.onload = e => { img.src = e.target.result; };
   img.onload = () => {
-    const MAX = 1280;
+    const MAX = 1100;
     let w = img.width, h = img.height;
     if (w > MAX || h > MAX){ const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
     const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
     cv.getContext('2d').drawImage(img,0,0,w,h);
-    fotoBase64 = cv.toDataURL('image/jpeg', 0.72);
+    fotoBase64 = cv.toDataURL('image/jpeg', 0.65);
     document.getElementById('fotoPreview').src = fotoBase64;
     document.getElementById('fotoPreviewWrap').style.display = 'block';
   };
@@ -483,9 +483,31 @@ function removerFotoAtual(){
 }
 
 /* ---------- API ---------- */
-async function api(payload){
-  const resp = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) });
+async function chamada_(payload){
+  const resp = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload),
+    redirect:'follow',
+    cache:'no-store'
+  });
   return resp.json();
+}
+
+async function api(payload){
+  try{
+    return await chamada_(payload);
+  }catch(e1){
+    // "Load failed" / falha de rede: espera 1,5s e tenta de novo automaticamente
+    await new Promise(r=>setTimeout(r,1500));
+    try{
+      return await chamada_(payload);
+    }catch(e2){
+      throw new Error('Falha de conexão com o Apps Script ("' + e2.message + '"). ' +
+        'Verifique a internet e se a implantação está como App da Web com acesso "Qualquer pessoa" ' +
+        '(Implantar → Gerenciar implantações). Após alterar o código, é preciso criar uma NOVA versão da implantação.');
+    }
+  }
 }
 
 /* ---------- salvar / atualizar ---------- */
@@ -527,8 +549,41 @@ async function salvar(){
     limparFormulario();
     trocarAba('lista');
     carregarRegistros();
-  }catch(e){ toast('Erro: ' + e.message, true); }
+  }catch(e){
+    // Às vezes o salvamento chega na planilha mas a resposta se perde no caminho.
+    // Confere na planilha antes de mostrar erro, para não salvar duplicado.
+    const confirmado = await conferirSeSalvou_(payload);
+    if (confirmado){
+      memorizarValores(origem, destino, payload.formaPagamento);
+      toast('Lançamento salvo com sucesso ✓');
+      cancelarEdicao(true);
+      limparFormulario();
+      trocarAba('lista');
+      renderLista();
+    } else {
+      toast('Erro: ' + e.message, true);
+    }
+  }
   finally{ btn.disabled=false; btn.textContent = editandoId ? 'Atualizar lançamento' : 'Salvar lançamento'; }
+}
+
+async function conferirSeSalvou_(payload){
+  try{
+    const r = await chamada_({acao:'listar'});
+    if(!r.ok || !r.registros) return false;
+    registros = r.registros;
+    atualizarSugestoes();
+    const alvo = payload.id || null;
+    if (alvo) return registros.some(x=>x.id===alvo); // edição
+    // novo lançamento: procura registro idêntico recém-criado
+    return registros.slice(0,5).some(x =>
+      x.data === payload.data &&
+      x.lojaOrigem === payload.lojaOrigem &&
+      x.lojaDestino === payload.lojaDestino &&
+      x.codigos === payload.codigos &&
+      x.produtos === payload.produtos
+    );
+  }catch(e){ return false; }
 }
 
 function limparFormulario(){
