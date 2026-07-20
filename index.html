@@ -117,8 +117,9 @@ textarea{resize:vertical;min-height:64px}
 @media(max-width:560px){.total-box b{font-size:15px}}
 
 /* ===== Tabela de lançamentos (pensada para o PC) ===== */
-.tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow:hidden}
+.tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:12.3px;table-layout:auto}
+@media(max-width:900px){table{min-width:940px}} /* no celular a tabela desliza para o lado */
 thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
   letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
 tbody td{padding:8px 7px;border-bottom:1px solid var(--linha);vertical-align:top}
@@ -243,11 +244,15 @@ tfoot td.num{text-align:right}
       </div>
       <div>
         <label for="numSequencia">Sequência venda</label>
-        <input type="text" id="numSequencia" autocomplete="off" inputmode="numeric" placeholder="Nº da sequência">
+        <input type="text" id="numSequencia" autocomplete="off" placeholder="Ex.: 1024 / 25-A">
       </div>
-      <div class="cheio">
+      <div>
+        <label for="numTransferencia">Sequência transferência</label>
+        <input type="text" id="numTransferencia" autocomplete="off" placeholder="Nº transf. estoque">
+      </div>
+      <div>
         <label for="formaPagamento">Forma de pagamento do Uber</label>
-        <input type="text" id="formaPagamento" autocomplete="off" list="sugPagamentos" placeholder="Digite a forma de pagamento">
+        <input type="text" id="formaPagamento" autocomplete="off" list="sugPagamentos" placeholder="Forma de pagamento">
       </div>
     </div>
   </div>
@@ -541,6 +546,7 @@ async function salvar(){
     valorCompra: parseFloat(document.getElementById('valorCompra').value) || 0,
     valorUber: parseFloat(document.getElementById('valorUber').value) || 0,
     numSequencia: document.getElementById('numSequencia').value.trim(),
+    numTransferencia: document.getElementById('numTransferencia').value.trim(),
     formaPagamento: document.getElementById('formaPagamento').value.trim(),
     observacoes: document.getElementById('observacoes').value.trim(),
     fotoBase64: fotoBase64,
@@ -594,7 +600,7 @@ async function conferirSeSalvou_(payload){
 }
 
 function limparFormulario(){
-  ['lojaOrigem','lojaDestino','formaPagamento','valorCompra','valorUber','numSequencia','observacoes'].forEach(id=>document.getElementById(id).value='');
+  ['lojaOrigem','lojaDestino','formaPagamento','valorCompra','valorUber','numSequencia','numTransferencia','observacoes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('data').value = hojeISO();
   document.getElementById('listaItens').innerHTML=''; addItem(); atualizarSoma();
   removerFoto();
@@ -615,6 +621,7 @@ function iniciarEdicao(id){
   document.getElementById('lojaOrigem').value = r.lojaOrigem;
   document.getElementById('lojaDestino').value = r.lojaDestino;
   document.getElementById('numSequencia').value = r.numSequencia;
+  document.getElementById('numTransferencia').value = r.numTransferencia;
   document.getElementById('formaPagamento').value = r.formaPagamento;
   document.getElementById('valorCompra').value = r.valorCompra || '';
   document.getElementById('valorUber').value = r.valorUber || '';
