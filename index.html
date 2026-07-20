@@ -117,11 +117,11 @@ textarea{resize:vertical;min-height:64px}
 @media(max-width:560px){.total-box b{font-size:15px}}
 
 /* ===== Tabela de lançamentos (pensada para o PC) ===== */
-.tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:1450px;font-size:12.8px}
-thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:11.5px;
-  letter-spacing:.03em;text-transform:uppercase;padding:10px 9px;text-align:left;white-space:nowrap;z-index:2}
-tbody td{padding:9px;border-bottom:1px solid var(--linha);vertical-align:top}
+.tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:12.3px;table-layout:auto}
+thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
+  letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
+tbody td{padding:8px 7px;border-bottom:1px solid var(--linha);vertical-align:top}
 tbody tr:nth-child(even){background:#FBF7F1}
 tbody tr:hover{background:var(--laranja-claro)}
 td.num{text-align:right;white-space:nowrap;font-weight:600}
@@ -130,10 +130,17 @@ td.nowrap{white-space:nowrap}
 .cod-mono{font-family:ui-monospace,monospace;color:var(--azul);font-weight:600}
 tfoot td{padding:11px 9px;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:13px;white-space:nowrap}
 tfoot td.num{text-align:right}
-.chip-transf{font-size:11.5px;font-weight:700;background:rgba(21,73,107,.08);border:1px solid rgba(21,73,107,.3);color:var(--azul);border-radius:99px;padding:2px 9px;white-space:nowrap;cursor:pointer}
-.chip-pendente{font-size:11.5px;font-weight:700;border:1.5px dashed var(--laranja-esc);background:none;color:var(--laranja-esc);border-radius:99px;padding:2px 9px;cursor:pointer;white-space:nowrap}
-.acao-btn{border:1.5px solid var(--linha);background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;margin:1px 0;display:block;width:100%}
+.chip{font-size:11px;font-weight:700;background:var(--fundo);border:1px solid var(--linha);color:var(--cinza);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.chip-transf{font-size:11px;font-weight:700;background:rgba(21,73,107,.08);border:1px solid rgba(21,73,107,.3);color:var(--azul);border-radius:99px;padding:2px 9px;white-space:nowrap;cursor:pointer}
+.chip-pendente{font-size:11px;font-weight:700;border:1.5px dashed var(--laranja-esc);background:none;color:var(--laranja-esc);border-radius:99px;padding:2px 9px;cursor:pointer;white-space:nowrap}
+.acao-btn{border:1.5px solid var(--linha);background:#fff;border-radius:8px;padding:4px 7px;font-size:13px;cursor:pointer;white-space:nowrap;margin:1px;display:inline-block}
 .acao-btn.ed{color:var(--azul)} .acao-btn.ex{color:var(--erro)} .acao-btn.ft{color:var(--laranja-esc)}
+.rota-cel{white-space:nowrap}
+.rota-cel .seta{color:var(--laranja-esc);font-weight:800}
+.prod-linha{display:block;line-height:1.45}
+.prod-linha .qv{color:var(--cinza);font-weight:600}
+.obs-cel{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
+.st-col{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
 .vazio{text-align:center;color:var(--cinza);padding:40px 10px}
 .vazio b{font-family:'Archivo';display:block;font-size:16px;color:var(--tinta);margin-bottom:4px}
 
@@ -720,30 +727,31 @@ function renderLista(){
   }
 
   const linhas = dados.map(r=>{
-    const valsFmt = (r.valores||'').split('\n').map(v => v && v!=='-' ? brl(parseFloat(v)) : '—').join('<br>');
+    const cods=r.codigos.split('\n'), noms=r.produtos.split('\n'),
+          qtds=r.quantidades.split('\n'), vals=(r.valores||'').split('\n');
+    const prods = noms.map((n,i)=>{
+      const v = vals[i] && vals[i] !== '-' ? ' — ' + brl(parseFloat(vals[i])) : '';
+      const q = qtds[i] && qtds[i] !== '-' ? ' ×' + esc(qtds[i]) : '';
+      return `<span class="prod-linha"><span class="cod-mono">${esc(cods[i]||'-')}</span> ${esc(n)}<span class="qv">${q}${v}</span></span>`;
+    }).join('');
     const transf = r.numTransferencia
-      ? `<button class="chip-transf" title="Editar nº" onclick="informarTransf('${r.id}','${esc(r.numTransferencia)}')">${esc(r.numTransferencia)} ✎</button>`
-      : `<button class="chip-pendente" onclick="informarTransf('${r.id}','')">+ informar</button>`;
+      ? `<button class="chip-transf" title="Editar nº" onclick="informarTransf('${r.id}','${esc(r.numTransferencia)}')">T: ${esc(r.numTransferencia)} ✎</button>`
+      : `<button class="chip-pendente" onclick="informarTransf('${r.id}','')">+ transf.</button>`;
     return `
     <tr>
       <td class="nowrap">${dataBR(r.data)}</td>
-      <td>${esc(r.lojaOrigem)}</td>
-      <td>${esc(r.lojaDestino)}</td>
-      <td class="linha-itens">${multi(r.codigos, true)}</td>
-      <td class="linha-itens">${multi(r.produtos)}</td>
-      <td class="linha-itens" style="text-align:center">${multi(r.quantidades)}</td>
-      <td class="linha-itens num">${valsFmt}</td>
+      <td class="rota-cel">${esc(r.lojaOrigem)} <span class="seta">→</span> ${esc(r.lojaDestino)}</td>
+      <td>${prods}</td>
       <td class="num" style="color:var(--azul)">${brl(totalProdutos(r))}</td>
       <td class="num" style="color:var(--verde)">${brl(r.valorUber)}</td>
       <td class="num"><b>${brl(totalProdutos(r) + r.valorUber)}</b></td>
-      <td class="nowrap">${esc(r.numSequencia) || '—'}</td>
-      <td>${transf}</td>
+      <td><div class="st-col">${r.numSequencia ? `<span class="chip">S: ${esc(r.numSequencia)}</span>` : ''}${transf}</div></td>
       <td>${esc(r.formaPagamento) || '—'}</td>
-      <td style="min-width:140px;max-width:220px">${esc(r.observacoes) || '—'}</td>
-      <td>${r.fotoUrl ? `<button class="acao-btn ft" onclick="verFoto('${esc(r.fotoUrl)}')">📷 Ver</button>` : '—'}</td>
-      <td>
-        <button class="acao-btn ed" onclick="iniciarEdicao('${r.id}')">✎ Editar</button>
-        <button class="acao-btn ex" onclick="excluir('${r.id}')">🗑 Apagar</button>
+      <td class="obs-cel" title="${esc(r.observacoes)}">${esc(r.observacoes) || '—'}</td>
+      <td class="nowrap">
+        ${r.fotoUrl ? `<button class="acao-btn ft" title="Ver foto" onclick="verFoto('${esc(r.fotoUrl)}')">📷</button>` : ''}
+        <button class="acao-btn ed" title="Editar" onclick="iniciarEdicao('${r.id}')">✎</button>
+        <button class="acao-btn ex" title="Apagar" onclick="excluir('${r.id}')">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -752,17 +760,17 @@ function renderLista(){
   <div class="tabela-wrap">
     <table>
       <thead><tr>
-        <th>Data</th><th>Loja origem</th><th>Loja destino</th><th>Código</th><th>Produto</th><th>Qtd</th>
-        <th>Valor produto</th><th>Total produtos</th><th>Uber</th><th>Total</th>
-        <th>Seq. venda</th><th>Transf. estoque</th><th>Pagamento</th><th>Observações</th><th>Foto</th><th>Ações</th>
+        <th>Data</th><th>Rota (origem → destino)</th><th>Produtos (código · nome · qtd · valor)</th>
+        <th>Total produtos</th><th>Uber</th><th>Total</th>
+        <th>Seq. / Transf.</th><th>Pagamento</th><th>Obs.</th><th>Ações</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
       <tfoot><tr>
-        <td colspan="7" style="text-align:right">TOTAIS (${dados.length} lançamento${dados.length>1?'s':''})</td>
+        <td colspan="3" style="text-align:right">TOTAIS (${dados.length} lançamento${dados.length>1?'s':''})</td>
         <td class="num">${brl(tCompra)}</td>
         <td class="num">${brl(tUber)}</td>
         <td class="num">${brl(tCompra+tUber)}</td>
-        <td colspan="6"></td>
+        <td colspan="4"></td>
       </tr></tfoot>
     </table>
   </div>`;
