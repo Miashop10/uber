@@ -503,7 +503,19 @@ async function chamada_(payload){
     redirect:'follow',
     cache:'no-store'
   });
-  return resp.json();
+  const texto = await resp.text();
+  try{
+    return JSON.parse(texto);
+  }catch(e){
+    // O Apps Script devolveu uma página HTML em vez de JSON
+    if (texto.indexOf('accounts.google.com') !== -1 || texto.indexOf('ServiceLogin') !== -1){
+      throw new Error('ACESSO: a implantação está exigindo login do Google. Em Implantar → Gerenciar implantações → ✎, mude "Quem pode acessar" para "Qualquer pessoa" (não "Qualquer pessoa com Conta do Google").');
+    }
+    if (resp.status === 404 || texto.indexOf('não encontrada') !== -1 || texto.indexOf('not found') !== -1 || texto.indexOf('Página não encontrada') !== -1){
+      throw new Error('URL ANTIGA: essa implantação não existe mais. Você provavelmente criou uma NOVA implantação (que gera URL nova). Abra Implantar → Gerenciar implantações, copie a URL /exec da implantação ATIVA e atualize a constante API_URL no index.html.');
+    }
+    throw new Error('O Apps Script respondeu uma página HTML em vez de dados. Teste: abra a URL /exec numa janela anônima — deve aparecer {"ok":true}. Se aparecer login ou erro, ajuste a implantação para acesso "Qualquer pessoa" ou atualize a API_URL.');
+  }
 }
 
 async function api(payload){
