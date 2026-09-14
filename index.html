@@ -597,6 +597,8 @@ async function conferirSeSalvou_(payload){
     const r = await chamada_({acao:'listar'});
     if(!r.ok || !r.registros) return false;
     registros = r.registros;
+    ordenarRegistros();
+    gravarCacheRegistros_();
     atualizarSugestoes();
     const alvo = payload.id || null;
     if (alvo) return registros.some(x=>x.id===alvo); // edição
@@ -670,22 +672,61 @@ function cancelarEdicao(silencioso){
 }
 
 /* ---------- listar ---------- */
+function ordenarRegistros(){
+  const chaveReg = s => {
+    // "dd/MM/yyyy HH:mm:ss" -> "yyyyMMddHHmmss" para comparação
+    const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+    return m ? m[3]+m[2]+m[1]+m[4]+m[5]+m[6] : '';
+  };
+  registros.sort((a,b)=>{
+    if (a.data !== b.data) return a.data < b.data ? 1 : -1;      // data mais recente primeiro
+    const ra = chaveReg(a.registradoEm), rb = chaveReg(b.registradoEm);
+    return ra < rb ? 1 : (ra > rb ? -1 : 0);                      // empate: registrado por último primeiro
+  });
+}
+
+function lerCacheRegistros_(){
+  try { return JSON.parse(localStorage.getItem('miashop_registros')) || null; } catch(e){ return null; }
+}
+function gravarCacheRegistros_(){
+  try { localStorage.setItem('miashop_registros', JSON.stringify(registros)); } catch(e){}
+}
+
 async function carregarRegistros(){
   if (API_URL.indexOf('COLE_AQUI') === 0){
     document.getElementById('listaRegistros').innerHTML =
       '<div class="vazio"><b>API não configurada</b>Cole a URL do Apps Script no index.html para carregar os lançamentos.</div>';
     return;
   }
-  document.getElementById('listaRegistros').innerHTML = '<div class="carregando"><span class="spin"></span>Carregando lançamentos...</div>';
+
+  // 1) Mostra NA HORA o que já está salvo neste aparelho (cache local)
+  const cache = lerCacheRegistros_();
+  if (cache && cache.length){
+    registros = cache;
+    ordenarRegistros();
+    atualizarSugestoes();
+    renderLista();
+    toast('Atualizando com a planilha...');
+  } else {
+    document.getElementById('listaRegistros').innerHTML = '<div class="carregando"><span class="spin"></span>Carregando lançamentos...</div>';
+  }
+
+  // 2) Busca na planilha em segundo plano e atualiza a tela
   try{
     const r = await api({acao:'listar'});
     if(!r.ok) throw new Error(r.erro || 'Falha ao listar.');
     registros = r.registros || [];
+    ordenarRegistros();
+    gravarCacheRegistros_();
     atualizarSugestoes();
     renderLista();
   }catch(e){
-    document.getElementById('listaRegistros').innerHTML =
-      '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
+    if (cache && cache.length){
+      toast('Sem conexão com a planilha — mostrando os dados salvos no aparelho.', true);
+    } else {
+      document.getElementById('listaRegistros').innerHTML =
+        '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
+    }
   }
 }
 
@@ -817,6 +858,7 @@ async function excluir(id){
     if(!r.ok) throw new Error(r.erro || 'Falha ao excluir.');
     toast('Lançamento apagado.');
     registros = registros.filter(x=>x.id!==id);
+    gravarCacheRegistros_();
     atualizarSugestoes();
     renderLista();
   }catch(e){ toast('Erro: '+e.message, true); }
