@@ -535,6 +535,13 @@ async function api(payload){
 }
 
 /* ---------- salvar / atualizar ---------- */
+function novoUuid_(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8); return v.toString(16);
+  });
+}
+
 async function salvar(){
   if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
   const origem = document.getElementById('lojaOrigem').value.trim();
@@ -549,9 +556,25 @@ async function salvar(){
   btn.disabled = true;
   btn.textContent = (editandoId ? 'Atualizando' : 'Salvando') + (fotoBase64 ? ' e enviando foto ao Drive...' : '...');
 
+  // Verificação de duplicado: compara com os lançamentos já existentes
+  if (!editandoId){
+    const dup = registros.find(x =>
+      x.data === document.getElementById('data').value &&
+      x.lojaOrigem.trim().toLowerCase() === origem.toLowerCase() &&
+      x.lojaDestino.trim().toLowerCase() === destino.toLowerCase() &&
+      x.codigos === itens.codigos &&
+      x.quantidades === itens.quantidades
+    );
+    if (dup){
+      const seguir = confirm('⚠️ LANÇAMENTO DUPLICADO\n\nJá existe um lançamento com a mesma data, mesmas lojas e mesmos produtos:\n\n' +
+        dataBR(dup.data) + ' · ' + dup.lojaOrigem + ' → ' + dup.lojaDestino + '\n\nDeseja lançar MESMO ASSIM?');
+      if (!seguir){ toast('Lançamento cancelado — já existia um igual.'); return; }
+    }
+  }
+
   const payload = {
     acao: editandoId ? 'editar' : 'salvar',
-    id: editandoId || undefined,
+    id: editandoId || novoUuid_(),   // ID criado aqui: reenvio com o mesmo ID nunca duplica
     data: document.getElementById('data').value,
     lojaOrigem: origem, lojaDestino: destino,
     codigos: itens.codigos, produtos: itens.produtos, quantidades: itens.quantidades, valores: itens.valores,
@@ -600,16 +623,8 @@ async function conferirSeSalvou_(payload){
     ordenarRegistros();
     gravarCacheRegistros_();
     atualizarSugestoes();
-    const alvo = payload.id || null;
-    if (alvo) return registros.some(x=>x.id===alvo); // edição
-    // novo lançamento: procura registro idêntico recém-criado
-    return registros.slice(0,5).some(x =>
-      x.data === payload.data &&
-      x.lojaOrigem === payload.lojaOrigem &&
-      x.lojaDestino === payload.lojaDestino &&
-      x.codigos === payload.codigos &&
-      x.produtos === payload.produtos
-    );
+    // o ID é gerado no aparelho antes do envio, então basta procurá-lo
+    return registros.some(x => String(x.id) === String(payload.id));
   }catch(e){ return false; }
 }
 
