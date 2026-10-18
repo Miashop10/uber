@@ -407,6 +407,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwT4ZEwSM4pfgfIYvhCFMAy
 
 let registros = [];
 let editandoId = null;
+
+// Padroniza o nome da filial: "vm", "Vm", " VM " → "VM" (unifica maiúsculas/minúsculas)
+function normLoja(s){
+  return String(s||'').trim().replace(/\s+/g,' ').toUpperCase();
+}
 let fotoAtualUrl = '';
 let fotoRemover = false;
 
@@ -441,10 +446,10 @@ function gravarCache(chave, lista){
 
 function atualizarSugestoes(){
   // une o que está na planilha com o que foi salvo neste navegador
-  const lojas = new Set(lerCache('miashop_lojas')), pags = new Set(lerCache('miashop_pagamentos'));
+  const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean)), pags = new Set(lerCache('miashop_pagamentos'));
   registros.forEach(r=>{
-    if(r.lojaOrigem) lojas.add(r.lojaOrigem);
-    if(r.lojaDestino) lojas.add(r.lojaDestino);
+    if(r.lojaOrigem) lojas.add(normLoja(r.lojaOrigem));
+    if(r.lojaDestino) lojas.add(normLoja(r.lojaDestino));
     if(r.formaPagamento) pags.add(r.formaPagamento);
   });
   gravarCache('miashop_lojas', lojas);
@@ -459,10 +464,10 @@ function atualizarSugestoes(){
 
 // registra imediatamente os valores digitados, para já aparecerem no próximo lançamento
 function memorizarValores(origem, destino, pagamento){
-  const lojas = new Set(lerCache('miashop_lojas'));
+  const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean));
   const pags = new Set(lerCache('miashop_pagamentos'));
-  if(origem) lojas.add(origem);
-  if(destino) lojas.add(destino);
+  if(origem) lojas.add(normLoja(origem));
+  if(destino) lojas.add(normLoja(destino));
   if(pagamento) pags.add(pagamento);
   gravarCache('miashop_lojas', lojas);
   gravarCache('miashop_pagamentos', pags);
@@ -622,8 +627,8 @@ function novoUuid_(){
 
 async function salvar(){
   if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
-  const origem = document.getElementById('lojaOrigem').value.trim();
-  const destino = document.getElementById('lojaDestino').value.trim();
+  const origem = normLoja(document.getElementById('lojaOrigem').value);
+  const destino = normLoja(document.getElementById('lojaDestino').value);
   if (!origem || !destino) return toast('Informe a loja de origem e a de destino.', true);
   if (origem.toLowerCase() === destino.toLowerCase()) return toast('A loja de origem e a de destino não podem ser a mesma.', true);
   const itens = coletarItens();
@@ -766,6 +771,7 @@ function cancelarEdicao(silencioso){
 
 /* ---------- listar ---------- */
 function ordenarRegistros(){
+  registros.forEach(r=>{ r.lojaOrigem = normLoja(r.lojaOrigem); r.lojaDestino = normLoja(r.lojaDestino); });
   const chaveReg = s => {
     // "dd/MM/yyyy HH:mm:ss" -> "yyyyMMddHHmmss" para comparação
     const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
