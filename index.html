@@ -123,6 +123,17 @@ textarea{resize:vertical;min-height:64px}
 .tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px;table-layout:auto}
 @media(max-width:900px){table{min-width:940px}} /* no celular a tabela desliza para o lado */
+/* Lançamentos: colunas de números/etiquetas encolhem ao tamanho do conteúdo;
+   Produtos (3) e Rota (2) ficam com o espaço restante — sem vão e sem rolagem lateral no PC */
+#listaRegistros td:nth-child(1),#listaRegistros th:nth-child(1),
+#listaRegistros td:nth-child(4),#listaRegistros th:nth-child(4),
+#listaRegistros td:nth-child(5),#listaRegistros th:nth-child(5),
+#listaRegistros td:nth-child(6),#listaRegistros th:nth-child(6),
+#listaRegistros td:nth-child(7),#listaRegistros th:nth-child(7),
+#listaRegistros td:nth-child(8),#listaRegistros th:nth-child(8),
+#listaRegistros td:nth-child(10),#listaRegistros th:nth-child(10){width:1%;white-space:nowrap}
+#listaRegistros td:nth-child(2){width:14%}
+#listaRegistros td:nth-child(9){width:12%}
 thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
   letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
 tbody td{padding:8px 7px;border-bottom:1px solid var(--linha);vertical-align:top}
@@ -143,7 +154,7 @@ tfoot td.num{text-align:right}
 .rota-cel .seta{color:var(--laranja-esc);font-weight:800}
 .prod-linha{display:block;line-height:1.45}
 .prod-linha .qv{color:var(--cinza);font-weight:600}
-.obs-cel{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
+.obs-cel{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
 .st-col{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
 .vazio{text-align:center;color:var(--cinza);padding:40px 10px}
 .vazio b{font-family:'Archivo';display:block;font-size:16px;color:var(--tinta);margin-bottom:4px}
@@ -160,15 +171,13 @@ tfoot td.num{text-align:right}
 .aviso-config{background:#FFF6E5;border:1.5px solid #E8C87A;border-radius:12px;padding:12px 14px;font-size:13.5px;color:#7A5A10;margin-bottom:14px;display:none}
 
 /* ===== Relatórios ===== */
+#painelRel .totais{grid-template-columns:repeat(4,1fr)}
+@media(max-width:700px){#painelRel .totais{grid-template-columns:repeat(2,1fr)}}
+.th-sort{cursor:pointer;user-select:none;white-space:nowrap}
+.th-sort:hover{text-decoration:underline}
+.th-sort.ativo{color:#FFD9A8}
 .rel-grade{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.rel-grade{grid-template-columns:1fr}}
-.rel-destaques{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-@media(max-width:700px){.rel-destaques{grid-template-columns:1fr}}
-.destaque{border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;background:var(--papel);box-shadow:var(--sombra);font-size:13.5px}
-.destaque b{font-family:'Archivo'}
-.destaque .rotulo{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--cinza);margin-bottom:3px}
-.destaque.envia{border-left:5px solid var(--laranja)}
-.destaque.recebe{border-left:5px solid var(--azul)}
 .rel-tab{width:100%;border-collapse:collapse;font-size:13px}
 .rel-tab th{background:var(--tinta);color:#fff;font-family:'Archivo';font-size:10.8px;text-transform:uppercase;letter-spacing:.02em;padding:8px 9px;text-align:left}
 .rel-tab td{padding:8px 9px;border-bottom:1px solid var(--linha)}
@@ -353,10 +362,9 @@ tfoot td.num{text-align:right}
   <div class="totais">
     <div class="total-box total-compra"><small>Ubers no período</small><b id="rTotQtd">0</b></div>
     <div class="total-box total-uber"><small>Valor total de Uber</small><b id="rTotUber">R$ 0,00</b></div>
+    <div class="total-box total-compra"><small>Valor produtos transferidos</small><b id="rTotProd">R$ 0,00</b></div>
     <div class="total-box total-geral"><small>Média por Uber</small><b id="rTotMedia">R$ 0,00</b></div>
   </div>
-
-  <div class="rel-destaques" id="relDestaques"></div>
 
   <div class="rel-grade">
     <div class="cartao" style="margin-bottom:0">
@@ -858,8 +866,30 @@ function totalProdutos(r){
   return soma;
 }
 
+/* ordenação da lista ao apertar no nome da coluna (padrão: data mais recente) */
+const listaSort = { c:null, d:1 };
+function sortLista(c){
+  if (listaSort.c === c) listaSort.d = -listaSort.d; else { listaSort.c = c; listaSort.d = 1; }
+  renderLista();
+}
+function thLista_(c, rotulo){
+  const seta = listaSort.c === c ? (listaSort.d === 1 ? ' ▼' : ' ▲') : '';
+  return `<th class="th-sort${listaSort.c===c?' ativo':''}" onclick="sortLista('${c}')" title="Apertar para ordenar">${rotulo}${seta}</th>`;
+}
+
 function renderLista(){
-  const dados = filtrar();
+  let dados = filtrar();
+  if (listaSort.c){
+    const valor = r => listaSort.c==='data' ? r.data
+      : listaSort.c==='prod' ? totalProdutos(r)
+      : listaSort.c==='uber' ? r.valorUber
+      : totalProdutos(r) + r.valorUber;
+    dados = [...dados].sort((a,b)=>{
+      const va = valor(a), vb = valor(b);
+      if (typeof va === 'string') return (va < vb ? 1 : va > vb ? -1 : 0) * listaSort.d;
+      return (vb - va) * listaSort.d;
+    });
+  }
   let tCompra=0, tUber=0;
   dados.forEach(r=>{ tCompra+=totalProdutos(r); tUber+=r.valorUber; });
   document.getElementById('totCompra').textContent = brl(tCompra);
@@ -906,8 +936,8 @@ function renderLista(){
   <div class="tabela-wrap">
     <table>
       <thead><tr>
-        <th>Data</th><th>Rota (origem → destino)</th><th>Produtos (código · nome · qtd · valor)</th>
-        <th>Total produtos</th><th>Uber</th><th>Total</th>
+        ${thLista_('data','Data')}<th>Rota (origem → destino)</th><th>Produtos (código · nome · qtd · valor)</th>
+        ${thLista_('prod','Total produtos')}${thLista_('uber','Uber')}${thLista_('total','Total')}
         <th>Seq. / Transf.</th><th>Pagamento</th><th>Obs.</th><th>Ações</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
@@ -1092,94 +1122,123 @@ function limparFiltrosRel(){
   renderRelatorio();
 }
 
-// Agrupa por filial: {filial: {qtdEnv, valEnv, qtdRec, valRec}}
+// Agrupa por filial: uber e produtos, enviados e recebidos
 function agruparPorFilial(dados){
   const mapa = {};
-  const pega = f => mapa[f] || (mapa[f] = {qtdEnv:0, valEnv:0, qtdRec:0, valRec:0});
+  const pega = f => mapa[f] || (mapa[f] = {qtdEnv:0, valEnv:0, prodEnv:0, qtdRec:0, valRec:0, prodRec:0});
   dados.forEach(r=>{
-    if (r.lojaOrigem){ const m = pega(r.lojaOrigem); m.qtdEnv++; m.valEnv += r.valorUber; }
-    if (r.lojaDestino){ const m = pega(r.lojaDestino); m.qtdRec++; m.valRec += r.valorUber; }
+    const vp = totalProdutos(r);
+    if (r.lojaOrigem){ const m = pega(r.lojaOrigem); m.qtdEnv++; m.valEnv += r.valorUber; m.prodEnv += vp; }
+    if (r.lojaDestino){ const m = pega(r.lojaDestino); m.qtdRec++; m.valRec += r.valorUber; m.prodRec += vp; }
   });
   return mapa;
 }
 
-function tabelaRel_(linhas, cor, rotuloQtd){
-  // linhas: [[filial, qtd, valor], ...] já ordenadas
+/* ---- ordenação ao apertar no nome da coluna (padrão: Valor Uber, do maior para o menor) ---- */
+const relSort = { orig:{c:2,d:1}, dest:{c:2,d:1}, comp:{c:-1,d:1} };
+function sortRel(tab, col){
+  const s = relSort[tab];
+  if (s.c === col) s.d = -s.d; else { s.c = col; s.d = 1; }
+  renderRelatorio();
+}
+function thSort_(tab, col, rotulo, alinhar){
+  const s = relSort[tab];
+  const seta = s.c === col ? (s.d === 1 ? ' ▼' : ' ▲') : '';
+  return `<th class="th-sort${s.c===col?' ativo':''}"${alinhar?' style="text-align:right"':''} onclick="sortRel('${tab}',${col})" title="Apertar para ordenar">${rotulo}${seta}</th>`;
+}
+function ordenar_(linhas, s){
+  return [...linhas].sort((a,b)=>{
+    const va = a[s.c], vb = b[s.c];
+    if (typeof va === 'string') return (va < vb ? -1 : va > vb ? 1 : 0) * s.d;   // nome: A→Z
+    return (vb - va) * s.d;                                                       // número: maior primeiro
+  });
+}
+
+function tabelaRel_(tab, linhas, cor, rotuloQtd){
+  // linhas: [[filial, qtd, valorUber, valorProdutos], ...]
   if (!linhas.length) return '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
+  linhas = ordenar_(linhas, relSort[tab]);
   const maxVal = Math.max(...linhas.map(l=>l[2]), 1);
-  let tq=0, tv=0;
+  let tq=0, tv=0, tp=0;
   const corpo = linhas.map(l=>{
-    tq+=l[1]; tv+=l[2];
+    tq+=l[1]; tv+=l[2]; tp+=l[3];
     const larg = Math.max(3, Math.round(l[2]/maxVal*100));
     return `<tr><td>${esc(l[0])}<span class="barra ${cor}" style="width:${larg}%"></span></td>
       <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
+      <td class="num" style="color:var(--verde)">${brl(l[3])}</td>
       <td class="num">${brl(l[1] ? l[2]/l[1] : 0)}</td></tr>`;
   }).join('');
-  return `<table class="rel-tab"><thead><tr><th>Filial</th><th style="text-align:right">${rotuloQtd}</th><th style="text-align:right">Valor Uber</th><th style="text-align:right">Média/Uber</th></tr></thead>
+  return `<table class="rel-tab"><thead><tr>
+      ${thSort_(tab,0,'Filial')}${thSort_(tab,1,rotuloQtd,1)}${thSort_(tab,2,'Valor Uber',1)}${thSort_(tab,3,'Valor produtos',1)}${thSort_(tab,4,'Média/Uber',1)}
+    </tr></thead>
     <tbody>${corpo}</tbody>
-    <tfoot><tr><td>TOTAL</td><td class="num">${tq}</td><td class="num">${brl(tv)}</td><td class="num">${brl(tq ? tv/tq : 0)}</td></tr></tfoot></table>`;
+    <tfoot><tr><td>TOTAL</td><td class="num">${tq}</td><td class="num">${brl(tv)}</td><td class="num">${brl(tp)}</td><td class="num">${brl(tq ? tv/tq : 0)}</td></tr></tfoot></table>`;
 }
 
 function renderRelatorio(){
   const dados = filtrarRel();
   const qtd = dados.length;
   const vUber = dados.reduce((s,r)=>s+r.valorUber, 0);
+  const vProd = dados.reduce((s,r)=>s+totalProdutos(r), 0);
   document.getElementById('rTotQtd').textContent = qtd;
   document.getElementById('rTotUber').textContent = brl(vUber);
+  document.getElementById('rTotProd').textContent = brl(vProd);
   document.getElementById('rTotMedia').textContent = brl(qtd ? vUber/qtd : 0);
 
   const mapa = agruparPorFilial(dados);
   const filiais = Object.keys(mapa);
 
-  const linhasOrig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv]).sort((a,b)=>b[2]-a[2]);
-  const linhasDest = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec]).sort((a,b)=>b[2]-a[2]);
+  const linhasOrig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv, mapa[f].prodEnv]);
+  const linhasDest = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec, mapa[f].prodRec]);
 
-  document.getElementById('relOrigem').innerHTML = tabelaRel_(linhasOrig, '', 'Ubers enviados');
-  document.getElementById('relDestino').innerHTML = tabelaRel_(linhasDest, 'azul', 'Ubers recebidos');
-
-  // Destaques: quem mais enviou e quem mais recebeu
-  const dest = document.getElementById('relDestaques');
-  if (linhasOrig.length || linhasDest.length){
-    const topE = linhasOrig[0], topR = linhasDest[0];
-    dest.innerHTML =
-      (topE ? `<div class="destaque envia"><span class="rotulo">⬆ Filial que MAIS ENVIOU mercadoria</span><b>${esc(topE[0])}</b> — ${topE[1]} Uber(s) · ${brl(topE[2])}</div>` : '') +
-      (topR ? `<div class="destaque recebe"><span class="rotulo">⬇ Filial que MAIS RECEBEU mercadoria</span><b>${esc(topR[0])}</b> — ${topR[1]} Uber(s) · ${brl(topR[2])}</div>` : '');
-  } else dest.innerHTML = '';
+  document.getElementById('relOrigem').innerHTML = tabelaRel_('orig', linhasOrig, '', 'Ubers enviados');
+  document.getElementById('relDestino').innerHTML = tabelaRel_('dest', linhasDest, 'azul', 'Ubers recebidos');
 
   // Comparativo enviou × recebeu
-  const comp = filiais.map(f=>{
+  // colunas: 0 filial · 1 ubers env · 2 valor uber env · 3 produtos env · 4 ubers rec · 5 valor uber rec · 6 produtos rec · 7 diferença uber
+  let comp = filiais.map(f=>{
     const m = mapa[f];
-    return [f, m.qtdEnv, m.valEnv, m.qtdRec, m.valRec, m.valEnv - m.valRec];
-  }).sort((a,b)=> (b[2]+b[4]) - (a[2]+a[4]));
+    return [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdRec, m.valRec, m.prodRec, m.valEnv - m.valRec];
+  });
+  const sc = relSort.comp;
+  comp = sc.c === -1
+    ? comp.sort((a,b)=> ((b[2]+b[5]) - (a[2]+a[5])) * sc.d)
+    : ordenar_(comp, sc);
 
   if (!comp.length){
     document.getElementById('relComparativo').innerHTML = '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
     return;
   }
-  let tqE=0,tvE=0,tqR=0,tvR=0;
+  let tqE=0,tvE=0,tpE=0,tqR=0,tvR=0,tpR=0;
   const corpoC = comp.map(l=>{
-    tqE+=l[1]; tvE+=l[2]; tqR+=l[3]; tvR+=l[4];
+    tqE+=l[1]; tvE+=l[2]; tpE+=l[3]; tqR+=l[4]; tvR+=l[5]; tpR+=l[6];
     return `<tr><td><b>${esc(l[0])}</b></td>
-      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
-      <td class="num">${l[3]}</td><td class="num">${brl(l[4])}</td>
-      <td class="num" style="color:${l[5]>0?'var(--laranja-esc)':l[5]<0?'var(--azul)':'var(--cinza)'}">${l[5]>0?'enviou +':l[5]<0?'recebeu +':''}${brl(Math.abs(l[5]))}</td></tr>`;
+      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td><td class="num" style="color:var(--verde)">${brl(l[3])}</td>
+      <td class="num">${l[4]}</td><td class="num">${brl(l[5])}</td><td class="num" style="color:var(--verde)">${brl(l[6])}</td>
+      <td class="num" style="color:${l[7]>0?'var(--laranja-esc)':l[7]<0?'var(--azul)':'var(--cinza)'}">${l[7]>0?'enviou +':l[7]<0?'recebeu +':''}${brl(Math.abs(l[7]))}</td></tr>`;
   }).join('');
   document.getElementById('relComparativo').innerHTML =
-    `<table class="rel-tab"><thead><tr><th>Filial</th>
-      <th style="text-align:right">Ubers enviados</th><th style="text-align:right">Valor enviado</th>
-      <th style="text-align:right">Ubers recebidos</th><th style="text-align:right">Valor recebido</th>
-      <th style="text-align:right">Diferença</th></tr></thead>
+    `<table class="rel-tab"><thead><tr>
+      ${thSort_('comp',0,'Filial')}
+      ${thSort_('comp',1,'Ubers enviados',1)}${thSort_('comp',2,'Valor Uber env.',1)}${thSort_('comp',3,'Produtos env.',1)}
+      ${thSort_('comp',4,'Ubers recebidos',1)}${thSort_('comp',5,'Valor Uber rec.',1)}${thSort_('comp',6,'Produtos rec.',1)}
+      ${thSort_('comp',7,'Diferença Uber',1)}
+    </tr></thead>
       <tbody>${corpoC}</tbody>
-      <tfoot><tr><td>TOTAL</td><td class="num">${tqE}</td><td class="num">${brl(tvE)}</td><td class="num">${tqR}</td><td class="num">${brl(tvR)}</td><td></td></tr></tfoot></table>`;
+      <tfoot><tr><td>TOTAL</td><td class="num">${tqE}</td><td class="num">${brl(tvE)}</td><td class="num">${brl(tpE)}</td><td class="num">${tqR}</td><td class="num">${brl(tvR)}</td><td class="num">${brl(tpR)}</td><td></td></tr></tfoot></table>`;
 }
 
 function dadosRelExport_(){
   const dados = filtrarRel();
   const mapa = agruparPorFilial(dados);
   const filiais = Object.keys(mapa);
-  const orig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv, mapa[f].qtdEnv?mapa[f].valEnv/mapa[f].qtdEnv:0]).sort((a,b)=>b[2]-a[2]);
-  const destl = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec, mapa[f].qtdRec?mapa[f].valRec/mapa[f].qtdRec:0]).sort((a,b)=>b[2]-a[2]);
-  const comp = filiais.map(f=>{const m=mapa[f]; return [f, m.qtdEnv, m.valEnv, m.qtdRec, m.valRec, m.valEnv-m.valRec];}).sort((a,b)=>(b[2]+b[4])-(a[2]+a[4]));
+  const mk = (f, m, env) => env
+    ? [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdEnv ? m.valEnv/m.qtdEnv : 0]
+    : [f, m.qtdRec, m.valRec, m.prodRec, m.qtdRec ? m.valRec/m.qtdRec : 0];
+  const orig  = ordenar_(filiais.filter(f=>mapa[f].qtdEnv).map(f=>mk(f, mapa[f], true)),  relSort.orig);
+  const destl = ordenar_(filiais.filter(f=>mapa[f].qtdRec).map(f=>mk(f, mapa[f], false)), relSort.dest);
+  let comp = filiais.map(f=>{const m=mapa[f]; return [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdRec, m.valRec, m.prodRec, m.valEnv-m.valRec];});
+  comp = relSort.comp.c === -1 ? comp.sort((a,b)=>((b[2]+b[5])-(a[2]+a[5]))*relSort.comp.d) : ordenar_(comp, relSort.comp);
   const periodo = (document.getElementById('rDataDe').value ? dataBR(document.getElementById('rDataDe').value) : 'início') +
                   ' até ' + (document.getElementById('rDataAte').value ? dataBR(document.getElementById('rDataAte').value) : 'hoje');
   const filtroTxt = 'Período: ' + periodo +
@@ -1191,21 +1250,21 @@ function dadosRelExport_(){
 function exportarRelExcel(){
   const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
   const wb = XLSX.utils.book_new();
-  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0);
+  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
 
   const aoaO = [['RELATÓRIO DE UBER POR FILIAL DE ORIGEM (quem enviou)'],[filtroTxt],[],
-    ['Filial','Ubers enviados','Valor Uber (R$)','Média por Uber (R$)'],
-    ...orig, [], ['TOTAL', somaQ, somaV, somaQ?somaV/somaQ:0]];
+    ['Filial','Ubers enviados','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
+    ...orig, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
   const aoaD = [['RELATÓRIO DE UBER POR FILIAL DE DESTINO (quem recebeu)'],[filtroTxt],[],
-    ['Filial','Ubers recebidos','Valor Uber (R$)','Média por Uber (R$)'],
-    ...destl, [], ['TOTAL', somaQ, somaV, somaQ?somaV/somaQ:0]];
+    ['Filial','Ubers recebidos','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
+    ...destl, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
   const aoaC = [['COMPARATIVO POR FILIAL — ENVIOU × RECEBEU'],[filtroTxt],[],
-    ['Filial','Ubers enviados','Valor enviado (R$)','Ubers recebidos','Valor recebido (R$)','Diferença (R$)'],
+    ['Filial','Ubers enviados','Valor Uber enviado (R$)','Produtos enviados (R$)','Ubers recebidos','Valor Uber recebido (R$)','Produtos recebidos (R$)','Diferença Uber (R$)'],
     ...comp];
 
-  const wsO = XLSX.utils.aoa_to_sheet(aoaO); wsO['!cols']=[{wch:22},{wch:15},{wch:16},{wch:18}];
-  const wsD = XLSX.utils.aoa_to_sheet(aoaD); wsD['!cols']=[{wch:22},{wch:16},{wch:16},{wch:18}];
-  const wsC = XLSX.utils.aoa_to_sheet(aoaC); wsC['!cols']=[{wch:22},{wch:15},{wch:17},{wch:16},{wch:17},{wch:16}];
+  const wsO = XLSX.utils.aoa_to_sheet(aoaO); wsO['!cols']=[{wch:22},{wch:15},{wch:16},{wch:18},{wch:18}];
+  const wsD = XLSX.utils.aoa_to_sheet(aoaD); wsD['!cols']=[{wch:22},{wch:16},{wch:16},{wch:18},{wch:18}];
+  const wsC = XLSX.utils.aoa_to_sheet(aoaC); wsC['!cols']=[{wch:22},{wch:14},{wch:19},{wch:19},{wch:15},{wch:20},{wch:19},{wch:17}];
   XLSX.utils.book_append_sheet(wb, wsO, 'Por Origem');
   XLSX.utils.book_append_sheet(wb, wsD, 'Por Destino');
   XLSX.utils.book_append_sheet(wb, wsC, 'Comparativo');
@@ -1214,32 +1273,32 @@ function exportarRelExcel(){
 
 function exportarRelPDF(){
   const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
-  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0);
-  const doc = new jspdf.jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
+  const doc = new jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
   doc.setFont('helvetica','bold'); doc.setFontSize(14);
   doc.setTextColor(245,134,52); doc.text('Miashop', 14, 14);
   doc.setTextColor(36,26,18); doc.text('— Relatório de Uber por Filial', 34, 14);
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   doc.text(filtroTxt + '  |  Gerado em ' + new Date().toLocaleString('pt-BR'), 14, 20);
-  doc.text('Total: ' + somaQ + ' Uber(s) · ' + brl(somaV) + ' · média ' + brl(somaQ?somaV/somaQ:0), 14, 25);
+  doc.text('Total: ' + somaQ + ' Uber(s) · Uber ' + brl(somaV) + ' · produtos ' + brl(somaP) + ' · média ' + brl(somaQ?somaV/somaQ:0) + '/Uber', 14, 25);
 
-  const fmt = l => [l[0], String(l[1]), brl(l[2]), brl(l[3]!==undefined && l.length===4 ? l[3] : (l[1]?l[2]/l[1]:0))];
+  const fmt = l => [l[0], String(l[1]), brl(l[2]), brl(l[3]), brl(l[4])];
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de ORIGEM (quem enviou)', 14, 33);
-  doc.autoTable({ head:[['Filial','Ubers enviados','Valor Uber','Média/Uber']],
-    body: orig.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaQ?somaV/somaQ:0)]],
+  doc.autoTable({ head:[['Filial','Ubers enviados','Valor Uber','Valor produtos','Média/Uber']],
+    body: orig.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
     startY:35, styles:{fontSize:8.5}, headStyles:{fillColor:[245,134,52]}, footStyles:{fillColor:[36,26,18]} });
 
   let y = doc.lastAutoTable.finalY + 10;
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de DESTINO (quem recebeu)', 14, y);
-  doc.autoTable({ head:[['Filial','Ubers recebidos','Valor Uber','Média/Uber']],
-    body: destl.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaQ?somaV/somaQ:0)]],
+  doc.autoTable({ head:[['Filial','Ubers recebidos','Valor Uber','Valor produtos','Média/Uber']],
+    body: destl.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
     startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[21,73,107]}, footStyles:{fillColor:[36,26,18]} });
 
   y = doc.lastAutoTable.finalY + 10;
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Comparativo — enviou × recebeu', 14, y);
-  doc.autoTable({ head:[['Filial','Ubers env.','Valor env.','Ubers rec.','Valor rec.','Diferença']],
-    body: comp.map(l=>[l[0], String(l[1]), brl(l[2]), String(l[3]), brl(l[4]), (l[5]>0?'enviou +':l[5]<0?'recebeu +':'') + brl(Math.abs(l[5]))]),
-    startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[36,26,18]} });
+  doc.autoTable({ head:[['Filial','Ubers env.','Uber env.','Produtos env.','Ubers rec.','Uber rec.','Produtos rec.','Diferença Uber']],
+    body: comp.map(l=>[l[0], String(l[1]), brl(l[2]), brl(l[3]), String(l[4]), brl(l[5]), brl(l[6]), (l[7]>0?'enviou +':l[7]<0?'recebeu +':'') + brl(Math.abs(l[7]))]),
+    startY:y+2, styles:{fontSize:8}, headStyles:{fillColor:[36,26,18]} });
 
   doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
 }
