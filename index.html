@@ -22,7 +22,7 @@ h1,h2,h3{font-family:'Archivo',sans-serif}
 
 /* ===== Cabeçalho com a logo ===== */
 header{background:#F58634;color:#fff;padding:16px 16px 30px}
-.head-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.head-in{width:100%;margin:0;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .logo-img{height:58px;display:block}
 .head-titulo{border-left:2px solid rgba(255,255,255,.45);padding-left:16px}
 .head-titulo small{display:block;color:#FFE1C4;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
@@ -30,13 +30,13 @@ header{background:#F58634;color:#fff;padding:16px 16px 30px}
 @media(max-width:560px){.logo-img{height:44px}.head-titulo h1{font-size:16px}}
 
 /* ===== Abas ===== */
-.abas{max-width:1280px;margin:-18px auto 0;padding:0 16px;display:flex;gap:8px}
+.abas{width:100%;margin:-18px 0 0;padding:0 16px;display:flex;gap:8px}
 .aba{flex:1;max-width:230px;background:var(--papel);border:1px solid var(--linha);border-radius:12px;padding:11px;
   font-family:'Archivo';font-weight:700;font-size:14px;color:var(--cinza);cursor:pointer;box-shadow:var(--sombra);text-align:center}
 .aba.ativa{background:var(--tinta);border-color:var(--tinta);color:#fff}
 .aba:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
 
-main{max-width:1280px;margin:18px auto 0;padding:0 16px}
+main{width:100%;margin:18px 0 0;padding:0 16px}
 .painel{display:none}
 .painel.ativo{display:block}
 #painelNovo{max-width:640px;margin:0 auto} /* formulário pensado para o celular */
@@ -105,6 +105,9 @@ textarea{resize:vertical;min-height:64px}
   padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .f-btn:hover{border-color:var(--laranja);color:var(--laranja-esc)}
 .f-btn.f-verde{color:var(--verde)} .f-btn.f-verm{color:var(--erro)}
+.f-btn.f-sync{background:var(--laranja);border-color:var(--laranja);color:#fff}
+.f-btn.f-sync:hover{background:var(--laranja-esc);color:#fff}
+.f-btn.f-sync:disabled{opacity:.6;cursor:wait}
 @media(max-width:700px){.f-espaco{display:none}}
 
 /* ===== Totais ===== */
@@ -118,7 +121,7 @@ textarea{resize:vertical;min-height:64px}
 
 /* ===== Tabela de lançamentos (pensada para o PC) ===== */
 .tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:12.3px;table-layout:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;table-layout:auto}
 @media(max-width:900px){table{min-width:940px}} /* no celular a tabela desliza para o lado */
 thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
   letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
@@ -140,7 +143,7 @@ tfoot td.num{text-align:right}
 .rota-cel .seta{color:var(--laranja-esc);font-weight:800}
 .prod-linha{display:block;line-height:1.45}
 .prod-linha .qv{color:var(--cinza);font-weight:600}
-.obs-cel{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
+.obs-cel{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
 .st-col{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
 .vazio{text-align:center;color:var(--cinza);padding:40px 10px}
 .vazio b{font-family:'Archivo';display:block;font-size:16px;color:var(--tinta);margin-bottom:4px}
@@ -155,6 +158,26 @@ tfoot td.num{text-align:right}
 @keyframes g{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){.spin{animation-duration:2s}#toast{transition:none}}
 .aviso-config{background:#FFF6E5;border:1.5px solid #E8C87A;border-radius:12px;padding:12px 14px;font-size:13.5px;color:#7A5A10;margin-bottom:14px;display:none}
+
+/* ===== Relatórios ===== */
+.rel-grade{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.rel-grade{grid-template-columns:1fr}}
+.rel-destaques{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(max-width:700px){.rel-destaques{grid-template-columns:1fr}}
+.destaque{border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;background:var(--papel);box-shadow:var(--sombra);font-size:13.5px}
+.destaque b{font-family:'Archivo'}
+.destaque .rotulo{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--cinza);margin-bottom:3px}
+.destaque.envia{border-left:5px solid var(--laranja)}
+.destaque.recebe{border-left:5px solid var(--azul)}
+.rel-tab{width:100%;border-collapse:collapse;font-size:13px}
+.rel-tab th{background:var(--tinta);color:#fff;font-family:'Archivo';font-size:10.8px;text-transform:uppercase;letter-spacing:.02em;padding:8px 9px;text-align:left}
+.rel-tab td{padding:8px 9px;border-bottom:1px solid var(--linha)}
+.rel-tab tr:nth-child(even){background:#FBF7F1}
+.rel-tab td.num{text-align:right;white-space:nowrap;font-weight:600}
+.rel-tab .barra{height:7px;border-radius:99px;background:var(--laranja);min-width:3px;display:block;margin-top:3px}
+.rel-tab .barra.azul{background:var(--azul)}
+.rel-tab tfoot td{background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700}
+.rel-vazio{color:var(--cinza);padding:16px;text-align:center;font-size:13.5px}
 
 /* ===== Visualizador de foto ampliada ===== */
 .lightbox{display:none;position:fixed;inset:0;background:rgba(20,12,5,.88);z-index:200;
@@ -183,6 +206,7 @@ tfoot td.num{text-align:right}
 <nav class="abas">
   <button class="aba ativa" id="abaNovo" onclick="trocarAba('novo')">+ Novo lançamento</button>
   <button class="aba" id="abaLista" onclick="trocarAba('lista')">Lançamentos</button>
+  <button class="aba" id="abaRel" onclick="trocarAba('rel')">Relatórios</button>
 </nav>
 
 <main>
@@ -296,6 +320,7 @@ tfoot td.num{text-align:right}
     <select id="fDestino" title="Loja destino" onchange="renderLista()"><option value="">Loja destino: todas</option></select>
     <button class="f-btn" title="Limpar filtros" onclick="limparFiltros()">✕ Limpar</button>
     <span class="f-espaco"></span>
+    <button class="f-btn f-sync" id="btnSync" title="Enviar para a nuvem tudo o que está neste computador e baixar a lista completa" onclick="sincronizar()">☁ Sincronizar</button>
     <button class="f-btn" title="Recarregar da planilha" onclick="carregarRegistros()">↺</button>
     <button class="f-btn f-verde" onclick="exportarExcel()">⬇ Excel</button>
     <button class="f-btn f-verm" onclick="exportarPDF()">⬇ PDF</button>
@@ -308,6 +333,46 @@ tfoot td.num{text-align:right}
   </div>
 
   <div id="listaRegistros"><div class="carregando"><span class="spin"></span>Carregando lançamentos...</div></div>
+</section>
+
+<!-- ==================== RELATÓRIOS ==================== -->
+<section class="painel" id="painelRel">
+
+  <div class="barra-filtros">
+    <input type="date" id="rDataDe" title="Data de" onchange="renderRelatorio()">
+    <span class="f-sep">até</span>
+    <input type="date" id="rDataAte" title="Data até" onchange="renderRelatorio()">
+    <select id="rFilial" title="Filial" onchange="renderRelatorio()"><option value="">Filial: todas</option></select>
+    <select id="rPagamento" title="Forma de pagamento" onchange="renderRelatorio()"><option value="">Pagamento: todos</option></select>
+    <button class="f-btn" title="Limpar filtros" onclick="limparFiltrosRel()">✕ Limpar</button>
+    <span class="f-espaco"></span>
+    <button class="f-btn f-verde" onclick="exportarRelExcel()">⬇ Excel</button>
+    <button class="f-btn f-verm" onclick="exportarRelPDF()">⬇ PDF</button>
+  </div>
+
+  <div class="totais">
+    <div class="total-box total-compra"><small>Ubers no período</small><b id="rTotQtd">0</b></div>
+    <div class="total-box total-uber"><small>Valor total de Uber</small><b id="rTotUber">R$ 0,00</b></div>
+    <div class="total-box total-geral"><small>Média por Uber</small><b id="rTotMedia">R$ 0,00</b></div>
+  </div>
+
+  <div class="rel-destaques" id="relDestaques"></div>
+
+  <div class="rel-grade">
+    <div class="cartao" style="margin-bottom:0">
+      <h2><span class="tag">⬆</span> Uber por filial de ORIGEM (quem enviou)</h2>
+      <div id="relOrigem"></div>
+    </div>
+    <div class="cartao" style="margin-bottom:0">
+      <h2><span class="tag">⬇</span> Uber por filial de DESTINO (quem recebeu)</h2>
+      <div id="relDestino"></div>
+    </div>
+  </div>
+
+  <div class="cartao" style="margin-top:16px">
+    <h2><span class="tag">⇄</span> Comparativo por filial — enviou × recebeu</h2>
+    <div id="relComparativo"></div>
+  </div>
 </section>
 </main>
 
@@ -351,8 +416,11 @@ function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getM
 function trocarAba(qual){
   document.getElementById('painelNovo').classList.toggle('ativo', qual==='novo');
   document.getElementById('painelLista').classList.toggle('ativo', qual==='lista');
+  document.getElementById('painelRel').classList.toggle('ativo', qual==='rel');
   document.getElementById('abaNovo').classList.toggle('ativa', qual==='novo');
   document.getElementById('abaLista').classList.toggle('ativa', qual==='lista');
+  document.getElementById('abaRel').classList.toggle('ativa', qual==='rel');
+  if (qual==='rel') renderRelatorio();
 }
 
 /* ---------- sugestões (lojas e pagamentos já usados) ---------- */
@@ -377,6 +445,8 @@ function atualizarSugestoes(){
   document.getElementById('sugPagamentos').innerHTML = [...pags].sort().map(p=>`<option value="${esc(p)}">`).join('');
   preencherSelect('fOrigem', [...lojas].sort(), 'Loja origem: todas');
   preencherSelect('fDestino', [...lojas].sort(), 'Loja destino: todas');
+  preencherSelect('rFilial', [...lojas].sort(), 'Filial: todas');
+  preencherSelect('rPagamento', [...pags].sort(), 'Pagamento: todos');
 }
 
 // registra imediatamente os valores digitados, para já aparecerem no próximo lançamento
@@ -735,9 +805,10 @@ async function carregarRegistros(){
     gravarCacheRegistros_();
     atualizarSugestoes();
     renderLista();
+    if (document.getElementById('painelRel').classList.contains('ativo')) renderRelatorio();
   }catch(e){
     if (cache && cache.length){
-      toast('Sem conexão com a planilha — mostrando os dados salvos no aparelho.', true);
+      toast('⚠️ SEM CONEXÃO com a planilha — esta lista pode estar DESATUALIZADA. Use ☁ Sincronizar.', true);
     } else {
       document.getElementById('listaRegistros').innerHTML =
         '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
@@ -851,6 +922,58 @@ function renderLista(){
   </div>`;
 }
 
+/* ---------- sincronização forçada ---------- */
+async function sincronizar(){
+  if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
+  const btn = document.getElementById('btnSync');
+  btn.disabled = true; const rotulo = btn.textContent;
+  btn.textContent = '☁ Sincronizando...';
+  try{
+    // 1) Baixa a lista completa da planilha (a nuvem)
+    const r = await chamada_({acao:'listar'});
+    if(!r.ok || !r.registros) throw new Error(r.erro || 'Falha ao ler a planilha.');
+    const daNuvem = r.registros;
+    const idsNuvem = new Set(daNuvem.map(x=>String(x.id)));
+
+    // 2) O que está salvo neste computador mas NÃO está na planilha → reenvia
+    const locais = lerCacheRegistros_() || [];
+    const pendentes = locais.filter(x => x.id && !idsNuvem.has(String(x.id)));
+    let enviados = 0, falhas = 0;
+    for (const p of pendentes){
+      btn.textContent = '☁ Enviando ' + (enviados+falhas+1) + '/' + pendentes.length + '...';
+      try{
+        const rs = await chamada_({
+          acao:'salvar', id:p.id, data:p.data,
+          lojaOrigem:p.lojaOrigem, lojaDestino:p.lojaDestino,
+          codigos:p.codigos, produtos:p.produtos, quantidades:p.quantidades, valores:p.valores,
+          valorCompra:p.valorCompra, valorUber:p.valorUber,
+          numSequencia:p.numSequencia, numTransferencia:p.numTransferencia,
+          formaPagamento:p.formaPagamento, observacoes:p.observacoes,
+          fotoUrl:p.fotoUrl || ''
+        });
+        if (rs.ok){ enviados++; daNuvem.push(p); idsNuvem.add(String(p.id)); }
+        else falhas++;
+      }catch(e){ falhas++; }
+    }
+
+    // 3) A planilha vira a referência única: todos os PCs passam a ver o mesmo
+    registros = daNuvem;
+    ordenarRegistros();
+    gravarCacheRegistros_();
+    atualizarSugestoes();
+    renderLista();
+
+    let msg = 'Sincronizado ✓ ' + registros.length + ' lançamentos na nuvem';
+    if (enviados) msg += ' · ' + enviados + ' enviado(s) deste computador';
+    if (falhas) msg += ' · ' + falhas + ' falharam (tente de novo)';
+    toast(msg, falhas > 0);
+  }catch(e){
+    toast('Não foi possível sincronizar: ' + e.message, true);
+  }finally{
+    btn.disabled = false; btn.textContent = rotulo;
+  }
+}
+
 /* ---------- nº transf. estoque (informado depois, pela lista) ---------- */
 async function informarTransf(id, atual){
   const numero = prompt('Nº da transferência de estoque no sistema:', atual || '');
@@ -948,6 +1071,178 @@ function fecharFoto(ev){
   document.body.style.overflow = '';
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharFoto(); });
+
+/* ---------- RELATÓRIOS ---------- */
+function filtrarRel(){
+  const de = document.getElementById('rDataDe').value;
+  const ate = document.getElementById('rDataAte').value;
+  const fil = document.getElementById('rFilial').value;
+  const pag = document.getElementById('rPagamento').value;
+  return registros.filter(r=>{
+    if (de && r.data < de) return false;
+    if (ate && r.data > ate) return false;
+    if (fil && r.lojaOrigem !== fil && r.lojaDestino !== fil) return false;
+    if (pag && r.formaPagamento !== pag) return false;
+    return true;
+  });
+}
+
+function limparFiltrosRel(){
+  ['rDataDe','rDataAte','rFilial','rPagamento'].forEach(id=>document.getElementById(id).value='');
+  renderRelatorio();
+}
+
+// Agrupa por filial: {filial: {qtdEnv, valEnv, qtdRec, valRec}}
+function agruparPorFilial(dados){
+  const mapa = {};
+  const pega = f => mapa[f] || (mapa[f] = {qtdEnv:0, valEnv:0, qtdRec:0, valRec:0});
+  dados.forEach(r=>{
+    if (r.lojaOrigem){ const m = pega(r.lojaOrigem); m.qtdEnv++; m.valEnv += r.valorUber; }
+    if (r.lojaDestino){ const m = pega(r.lojaDestino); m.qtdRec++; m.valRec += r.valorUber; }
+  });
+  return mapa;
+}
+
+function tabelaRel_(linhas, cor, rotuloQtd){
+  // linhas: [[filial, qtd, valor], ...] já ordenadas
+  if (!linhas.length) return '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
+  const maxVal = Math.max(...linhas.map(l=>l[2]), 1);
+  let tq=0, tv=0;
+  const corpo = linhas.map(l=>{
+    tq+=l[1]; tv+=l[2];
+    const larg = Math.max(3, Math.round(l[2]/maxVal*100));
+    return `<tr><td>${esc(l[0])}<span class="barra ${cor}" style="width:${larg}%"></span></td>
+      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
+      <td class="num">${brl(l[1] ? l[2]/l[1] : 0)}</td></tr>`;
+  }).join('');
+  return `<table class="rel-tab"><thead><tr><th>Filial</th><th style="text-align:right">${rotuloQtd}</th><th style="text-align:right">Valor Uber</th><th style="text-align:right">Média/Uber</th></tr></thead>
+    <tbody>${corpo}</tbody>
+    <tfoot><tr><td>TOTAL</td><td class="num">${tq}</td><td class="num">${brl(tv)}</td><td class="num">${brl(tq ? tv/tq : 0)}</td></tr></tfoot></table>`;
+}
+
+function renderRelatorio(){
+  const dados = filtrarRel();
+  const qtd = dados.length;
+  const vUber = dados.reduce((s,r)=>s+r.valorUber, 0);
+  document.getElementById('rTotQtd').textContent = qtd;
+  document.getElementById('rTotUber').textContent = brl(vUber);
+  document.getElementById('rTotMedia').textContent = brl(qtd ? vUber/qtd : 0);
+
+  const mapa = agruparPorFilial(dados);
+  const filiais = Object.keys(mapa);
+
+  const linhasOrig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv]).sort((a,b)=>b[2]-a[2]);
+  const linhasDest = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec]).sort((a,b)=>b[2]-a[2]);
+
+  document.getElementById('relOrigem').innerHTML = tabelaRel_(linhasOrig, '', 'Ubers enviados');
+  document.getElementById('relDestino').innerHTML = tabelaRel_(linhasDest, 'azul', 'Ubers recebidos');
+
+  // Destaques: quem mais enviou e quem mais recebeu
+  const dest = document.getElementById('relDestaques');
+  if (linhasOrig.length || linhasDest.length){
+    const topE = linhasOrig[0], topR = linhasDest[0];
+    dest.innerHTML =
+      (topE ? `<div class="destaque envia"><span class="rotulo">⬆ Filial que MAIS ENVIOU mercadoria</span><b>${esc(topE[0])}</b> — ${topE[1]} Uber(s) · ${brl(topE[2])}</div>` : '') +
+      (topR ? `<div class="destaque recebe"><span class="rotulo">⬇ Filial que MAIS RECEBEU mercadoria</span><b>${esc(topR[0])}</b> — ${topR[1]} Uber(s) · ${brl(topR[2])}</div>` : '');
+  } else dest.innerHTML = '';
+
+  // Comparativo enviou × recebeu
+  const comp = filiais.map(f=>{
+    const m = mapa[f];
+    return [f, m.qtdEnv, m.valEnv, m.qtdRec, m.valRec, m.valEnv - m.valRec];
+  }).sort((a,b)=> (b[2]+b[4]) - (a[2]+a[4]));
+
+  if (!comp.length){
+    document.getElementById('relComparativo').innerHTML = '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
+    return;
+  }
+  let tqE=0,tvE=0,tqR=0,tvR=0;
+  const corpoC = comp.map(l=>{
+    tqE+=l[1]; tvE+=l[2]; tqR+=l[3]; tvR+=l[4];
+    return `<tr><td><b>${esc(l[0])}</b></td>
+      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
+      <td class="num">${l[3]}</td><td class="num">${brl(l[4])}</td>
+      <td class="num" style="color:${l[5]>0?'var(--laranja-esc)':l[5]<0?'var(--azul)':'var(--cinza)'}">${l[5]>0?'enviou +':l[5]<0?'recebeu +':''}${brl(Math.abs(l[5]))}</td></tr>`;
+  }).join('');
+  document.getElementById('relComparativo').innerHTML =
+    `<table class="rel-tab"><thead><tr><th>Filial</th>
+      <th style="text-align:right">Ubers enviados</th><th style="text-align:right">Valor enviado</th>
+      <th style="text-align:right">Ubers recebidos</th><th style="text-align:right">Valor recebido</th>
+      <th style="text-align:right">Diferença</th></tr></thead>
+      <tbody>${corpoC}</tbody>
+      <tfoot><tr><td>TOTAL</td><td class="num">${tqE}</td><td class="num">${brl(tvE)}</td><td class="num">${tqR}</td><td class="num">${brl(tvR)}</td><td></td></tr></tfoot></table>`;
+}
+
+function dadosRelExport_(){
+  const dados = filtrarRel();
+  const mapa = agruparPorFilial(dados);
+  const filiais = Object.keys(mapa);
+  const orig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv, mapa[f].qtdEnv?mapa[f].valEnv/mapa[f].qtdEnv:0]).sort((a,b)=>b[2]-a[2]);
+  const destl = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec, mapa[f].qtdRec?mapa[f].valRec/mapa[f].qtdRec:0]).sort((a,b)=>b[2]-a[2]);
+  const comp = filiais.map(f=>{const m=mapa[f]; return [f, m.qtdEnv, m.valEnv, m.qtdRec, m.valRec, m.valEnv-m.valRec];}).sort((a,b)=>(b[2]+b[4])-(a[2]+a[4]));
+  const periodo = (document.getElementById('rDataDe').value ? dataBR(document.getElementById('rDataDe').value) : 'início') +
+                  ' até ' + (document.getElementById('rDataAte').value ? dataBR(document.getElementById('rDataAte').value) : 'hoje');
+  const filtroTxt = 'Período: ' + periodo +
+    (document.getElementById('rFilial').value ? ' | Filial: ' + document.getElementById('rFilial').value : '') +
+    (document.getElementById('rPagamento').value ? ' | Pagamento: ' + document.getElementById('rPagamento').value : '');
+  return { dados, orig, destl, comp, filtroTxt };
+}
+
+function exportarRelExcel(){
+  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
+  const wb = XLSX.utils.book_new();
+  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0);
+
+  const aoaO = [['RELATÓRIO DE UBER POR FILIAL DE ORIGEM (quem enviou)'],[filtroTxt],[],
+    ['Filial','Ubers enviados','Valor Uber (R$)','Média por Uber (R$)'],
+    ...orig, [], ['TOTAL', somaQ, somaV, somaQ?somaV/somaQ:0]];
+  const aoaD = [['RELATÓRIO DE UBER POR FILIAL DE DESTINO (quem recebeu)'],[filtroTxt],[],
+    ['Filial','Ubers recebidos','Valor Uber (R$)','Média por Uber (R$)'],
+    ...destl, [], ['TOTAL', somaQ, somaV, somaQ?somaV/somaQ:0]];
+  const aoaC = [['COMPARATIVO POR FILIAL — ENVIOU × RECEBEU'],[filtroTxt],[],
+    ['Filial','Ubers enviados','Valor enviado (R$)','Ubers recebidos','Valor recebido (R$)','Diferença (R$)'],
+    ...comp];
+
+  const wsO = XLSX.utils.aoa_to_sheet(aoaO); wsO['!cols']=[{wch:22},{wch:15},{wch:16},{wch:18}];
+  const wsD = XLSX.utils.aoa_to_sheet(aoaD); wsD['!cols']=[{wch:22},{wch:16},{wch:16},{wch:18}];
+  const wsC = XLSX.utils.aoa_to_sheet(aoaC); wsC['!cols']=[{wch:22},{wch:15},{wch:17},{wch:16},{wch:17},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsO, 'Por Origem');
+  XLSX.utils.book_append_sheet(wb, wsD, 'Por Destino');
+  XLSX.utils.book_append_sheet(wb, wsC, 'Comparativo');
+  XLSX.writeFile(wb, 'Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.xlsx');
+}
+
+function exportarRelPDF(){
+  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
+  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0);
+  const doc = new jspdf.jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setTextColor(245,134,52); doc.text('Miashop', 14, 14);
+  doc.setTextColor(36,26,18); doc.text('— Relatório de Uber por Filial', 34, 14);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text(filtroTxt + '  |  Gerado em ' + new Date().toLocaleString('pt-BR'), 14, 20);
+  doc.text('Total: ' + somaQ + ' Uber(s) · ' + brl(somaV) + ' · média ' + brl(somaQ?somaV/somaQ:0), 14, 25);
+
+  const fmt = l => [l[0], String(l[1]), brl(l[2]), brl(l[3]!==undefined && l.length===4 ? l[3] : (l[1]?l[2]/l[1]:0))];
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de ORIGEM (quem enviou)', 14, 33);
+  doc.autoTable({ head:[['Filial','Ubers enviados','Valor Uber','Média/Uber']],
+    body: orig.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaQ?somaV/somaQ:0)]],
+    startY:35, styles:{fontSize:8.5}, headStyles:{fillColor:[245,134,52]}, footStyles:{fillColor:[36,26,18]} });
+
+  let y = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de DESTINO (quem recebeu)', 14, y);
+  doc.autoTable({ head:[['Filial','Ubers recebidos','Valor Uber','Média/Uber']],
+    body: destl.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaQ?somaV/somaQ:0)]],
+    startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[21,73,107]}, footStyles:{fillColor:[36,26,18]} });
+
+  y = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Comparativo — enviou × recebeu', 14, y);
+  doc.autoTable({ head:[['Filial','Ubers env.','Valor env.','Ubers rec.','Valor rec.','Diferença']],
+    body: comp.map(l=>[l[0], String(l[1]), brl(l[2]), String(l[3]), brl(l[4]), (l[5]>0?'enviou +':l[5]<0?'recebeu +':'') + brl(Math.abs(l[5]))]),
+    startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[36,26,18]} });
+
+  doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
+}
 
 /* ---------- toast ---------- */
 let toastTimer;
