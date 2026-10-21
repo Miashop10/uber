@@ -81,6 +81,16 @@ textarea{resize:vertical;min-height:64px}
 .banner-edicao b{color:var(--laranja-esc)}
 .banner-edicao button{border:1.5px solid var(--laranja-esc);background:#fff;color:var(--laranja-esc);border-radius:9px;padding:6px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
 
+/* autocomplete de filiais */
+.ac-wrap{position:relative}
+.ac-lista{display:none;position:absolute;top:100%;left:0;right:0;margin-top:3px;background:#fff;border:1.5px solid var(--linha);
+  border-radius:11px;box-shadow:0 8px 26px rgba(36,26,18,.16);z-index:60;max-height:230px;overflow-y:auto}
+.ac-item{padding:10px 13px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--fundo)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item:active{background:var(--laranja-claro)}
+.ac-item b{color:var(--laranja-esc)}
+.ac-criar{color:var(--laranja-esc);font-weight:700;border-top:1.5px dashed var(--linha)}
+
 /* rota origem->destino */
 .rota-form{display:grid;grid-template-columns:1fr 34px 1fr;gap:6px;align-items:end}
 .rota-seta{height:43px;display:grid;place-items:center;color:var(--laranja-esc);font-size:20px;font-weight:800}
@@ -151,21 +161,19 @@ table{border-collapse:collapse;width:100%;font-size:13px;table-layout:auto}
 @media(min-width:901px){
   #listaRegistros table{table-layout:fixed;width:100%}
   #listaRegistros th:nth-child(1){width:6.5%}   /* Data */
-  #listaRegistros th:nth-child(2){width:11%}    /* Rota */
-  #listaRegistros th:nth-child(3){width:27.5%}  /* Produtos */
+  #listaRegistros th:nth-child(2){width:12.5%}  /* Rota */
+  #listaRegistros th:nth-child(3){width:30%}    /* Produtos */
   #listaRegistros th:nth-child(4){width:7%}     /* Total produtos */
   #listaRegistros th:nth-child(5){width:6.5%}   /* Uber */
   #listaRegistros th:nth-child(6){width:7%}     /* Total */
-  #listaRegistros th:nth-child(7){width:9.5%}   /* Seq./Transf. */
-  #listaRegistros th:nth-child(8){width:7.5%}   /* Pagamento */
-  #listaRegistros th:nth-child(9){width:9%}     /* Obs. */
-  #listaRegistros th:nth-child(10){width:8.5%}  /* Ações */
+  #listaRegistros th:nth-child(7){width:10%}    /* Seq./Transf. */
+  #listaRegistros th:nth-child(8){width:11%}    /* Obs. */
+  #listaRegistros th:nth-child(9){width:9.5%}   /* Ações */
   #listaRegistros th{white-space:normal}
   #listaRegistros .rota-cel{white-space:normal;overflow-wrap:anywhere}
-  #listaRegistros td:nth-child(8){overflow-wrap:anywhere}
   #listaRegistros .obs-cel{max-width:none;white-space:normal;overflow-wrap:anywhere}
   #listaRegistros .chip,#listaRegistros .chip-transf,#listaRegistros .chip-pendente{max-width:100%;overflow:hidden;text-overflow:ellipsis}
-  #listaRegistros td:nth-child(10){white-space:normal}
+  #listaRegistros td:nth-child(9){white-space:normal}
 }
 thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
   letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
@@ -294,14 +302,16 @@ tfoot td.num{text-align:right}
   <div class="cartao">
     <h2><span class="tag">2</span> Rota da transferência</h2>
     <div class="rota-form">
-      <div>
+      <div class="ac-wrap">
         <label for="lojaOrigem">Loja de origem (saiu de)</label>
-        <input type="text" id="lojaOrigem" autocomplete="off" list="sugLojas" placeholder="Digite a loja">
+        <input type="text" id="lojaOrigem" autocomplete="off" placeholder="Digite a loja">
+        <div class="ac-lista" id="ac_lojaOrigem"></div>
       </div>
       <div class="rota-seta">→</div>
-      <div>
+      <div class="ac-wrap">
         <label for="lojaDestino">Loja de destino (foi para)</label>
-        <input type="text" id="lojaDestino" autocomplete="off" list="sugLojas" placeholder="Digite a loja">
+        <input type="text" id="lojaDestino" autocomplete="off" placeholder="Digite a loja">
+        <div class="ac-lista" id="ac_lojaDestino"></div>
       </div>
     </div>
     <div class="grade" style="margin-top:12px">
@@ -316,10 +326,6 @@ tfoot td.num{text-align:right}
       <div>
         <label for="numTransferencia">Sequência transferência</label>
         <input type="text" id="numTransferencia" autocomplete="off" placeholder="Nº transf. estoque">
-      </div>
-      <div>
-        <label for="formaPagamento">Forma de pagamento do Uber</label>
-        <input type="text" id="formaPagamento" autocomplete="off" list="sugPagamentos" placeholder="Forma de pagamento">
       </div>
     </div>
   </div>
@@ -386,7 +392,6 @@ tfoot td.num{text-align:right}
     <span class="f-sep">até</span>
     <input type="date" id="rDataAte" title="Data até" onchange="renderRelatorio()">
     <select id="rFilial" title="Filial" onchange="renderRelatorio()"><option value="">Filial: todas</option></select>
-    <select id="rPagamento" title="Forma de pagamento" onchange="renderRelatorio()"><option value="">Pagamento: todos</option></select>
     <button class="f-btn" title="Limpar filtros" onclick="limparFiltrosRel()">✕ Limpar</button>
     <span class="f-espaco"></span>
     <button class="f-btn f-verde" onclick="exportarRelExcel()">⬇ Excel</button>
@@ -468,6 +473,8 @@ let fotoRemover = false;
 document.addEventListener('DOMContentLoaded', () => {
   if (API_URL.indexOf('COLE_AQUI') === 0) document.getElementById('avisoConfig').style.display = 'block';
   document.getElementById('data').value = hojeISO();
+  ligarAutocompleteLoja('lojaOrigem');
+  ligarAutocompleteLoja('lojaDestino');
   addItem();
   memorizarValores(); // carrega lojas/pagamentos já salvos neste navegador
   carregarRegistros();
@@ -508,7 +515,6 @@ function atualizarSugestoes(){
   preencherSelect('fOrigem', [...lojas].sort(), 'Loja origem: todas');
   preencherSelect('fDestino', [...lojas].sort(), 'Loja destino: todas');
   preencherSelect('rFilial', [...lojas].sort(), 'Filial: todas');
-  preencherSelect('rPagamento', [...pags].sort(), 'Pagamento: todos');
 }
 
 // registra imediatamente os valores digitados, para já aparecerem no próximo lançamento
@@ -714,7 +720,7 @@ async function salvar(){
     valorUber: parseFloat(document.getElementById('valorUber').value) || 0,
     numSequencia: document.getElementById('numSequencia').value.trim(),
     numTransferencia: document.getElementById('numTransferencia').value.trim(),
-    formaPagamento: document.getElementById('formaPagamento').value.trim(),
+    formaPagamento: '',
     observacoes: document.getElementById('observacoes').value.trim(),
     fotoBase64: fotoBase64,
     fotoRemover: fotoRemover
@@ -723,7 +729,7 @@ async function salvar(){
   try{
     const r = await api(payload);
     if(!r.ok) throw new Error(r.erro || 'Falha ao salvar.');
-    memorizarValores(origem, destino, payload.formaPagamento);
+    memorizarValores(origem, destino, '');
     toast(editandoId ? 'Lançamento atualizado ✓' : 'Lançamento salvo com sucesso ✓');
     cancelarEdicao(true);
     limparFormulario();
@@ -734,7 +740,7 @@ async function salvar(){
     // Confere na planilha antes de mostrar erro, para não salvar duplicado.
     const confirmado = await conferirSeSalvou_(payload);
     if (confirmado){
-      memorizarValores(origem, destino, payload.formaPagamento);
+      memorizarValores(origem, destino, '');
       toast('Lançamento salvo com sucesso ✓');
       cancelarEdicao(true);
       limparFormulario();
@@ -761,7 +767,7 @@ async function conferirSeSalvou_(payload){
 }
 
 function limparFormulario(){
-  ['lojaOrigem','lojaDestino','formaPagamento','valorCompra','valorUber','numSequencia','numTransferencia','observacoes'].forEach(id=>document.getElementById(id).value='');
+  ['lojaOrigem','lojaDestino','valorCompra','valorUber','numSequencia','numTransferencia','observacoes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('data').value = hojeISO();
   document.getElementById('listaItens').innerHTML=''; addItem(); atualizarSoma();
   removerFoto();
@@ -783,7 +789,6 @@ function iniciarEdicao(id){
   document.getElementById('lojaDestino').value = r.lojaDestino;
   document.getElementById('numSequencia').value = r.numSequencia;
   document.getElementById('numTransferencia').value = r.numTransferencia;
-  document.getElementById('formaPagamento').value = r.formaPagamento;
   document.getElementById('valorCompra').value = r.valorCompra || '';
   document.getElementById('valorUber').value = r.valorUber || '';
   document.getElementById('observacoes').value = r.observacoes;
@@ -977,7 +982,6 @@ function renderLista(){
       <td class="num" style="color:var(--verde)">${brl(r.valorUber)}</td>
       <td class="num"><b>${brl(totalProdutos(r) + r.valorUber)}</b></td>
       <td><div class="st-col">${r.numSequencia ? `<span class="chip">S: ${esc(r.numSequencia)}</span>` : ''}${transf}</div></td>
-      <td>${esc(r.formaPagamento) || '—'}</td>
       <td class="obs-cel" title="${esc(r.observacoes)}">${esc(r.observacoes) || '—'}</td>
       <td class="nowrap">
         ${r.fotoUrl ? `<button class="acao-btn ft" title="Ver foto" onclick="verFoto('${esc(r.fotoUrl)}')">📷</button>` : ''}
@@ -993,7 +997,7 @@ function renderLista(){
       <thead><tr>
         ${thLista_('data','Data')}<th>Rota (origem → destino)</th><th>Produtos (código · nome · qtd · valor)</th>
         ${thLista_('prod','Total produtos')}${thLista_('uber','Uber')}${thLista_('total','Total')}
-        <th>Seq. / Transf.</th><th>Pagamento</th><th>Obs.</th><th>Ações</th>
+        <th>Seq. / Transf.</th><th>Obs.</th><th>Ações</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
       <tfoot><tr>
@@ -1001,7 +1005,7 @@ function renderLista(){
         <td class="num">${brl(tCompra)}</td>
         <td class="num">${brl(tUber)}</td>
         <td class="num">${brl(tCompra+tUber)}</td>
-        <td colspan="4"></td>
+        <td colspan="3"></td>
       </tr></tfoot>
     </table>
   </div>`;
@@ -1098,10 +1102,10 @@ function linhasRelatorio(){
       r.codigos.replace(/\n/g,' | '), r.produtos.replace(/\n/g,' | '),
       r.quantidades.replace(/\n/g,' | '), (r.valores||'').replace(/\n/g,' | '),
       tp, r.valorUber, tp + r.valorUber,
-      r.numSequencia, r.numTransferencia, r.formaPagamento, r.observacoes, r.fotoUrl ];
+      r.numSequencia, r.numTransferencia, r.observacoes, r.fotoUrl ];
   });
-  linhas.push(['','','','','','','TOTAIS', tCompra, tUber, tCompra+tUber, '', '', '', '', '']);
-  return { cab:['Data','Loja Origem','Loja Destino','Códigos','Produtos','Quantidades','Valores Produtos (R$)','Total Produtos (R$)','Valor Uber (R$)','Total Linha (R$)','Sequência Venda','Nº Transf. Estoque','Pagamento','Observações','Foto'], linhas, tCompra, tUber };
+  linhas.push(['','','','','','','TOTAIS', tCompra, tUber, tCompra+tUber, '', '', '', '']);
+  return { cab:['Data','Loja Origem','Loja Destino','Códigos','Produtos','Quantidades','Valores Produtos (R$)','Total Produtos (R$)','Valor Uber (R$)','Total Linha (R$)','Sequência Venda','Nº Transf. Estoque','Observações','Foto'], linhas, tCompra, tUber };
 }
 
 function exportarExcel(){
@@ -1127,7 +1131,7 @@ function exportarPDF(){
            '   |   Total geral: ' + brl(tCompra+tUber), 14, 20);
   const corpo = linhas.map(l => l.map((c,i)=> (i>=7 && i<=9 && c!=='') ? brl(c) : String(c||'')));
   doc.autoTable({
-    head:[cab.slice(0,14)], body:corpo.map(l=>l.slice(0,14)), startY:24,
+    head:[cab.slice(0,13)], body:corpo.map(l=>l.slice(0,13)), startY:24,
     styles:{fontSize:6.3, cellPadding:1.3},
     headStyles:{fillColor:[245,134,52], textColor:255, fontSize:6.5},
     didParseCell: d => { if (d.row.index === corpo.length-1) d.cell.styles.fontStyle='bold'; }
@@ -1162,18 +1166,16 @@ function filtrarRel(){
   const de = document.getElementById('rDataDe').value;
   const ate = document.getElementById('rDataAte').value;
   const fil = document.getElementById('rFilial').value;
-  const pag = document.getElementById('rPagamento').value;
   return registros.filter(r=>{
     if (de && r.data < de) return false;
     if (ate && r.data > ate) return false;
     if (fil && r.lojaOrigem !== fil && r.lojaDestino !== fil) return false;
-    if (pag && r.formaPagamento !== pag) return false;
     return true;
   });
 }
 
 function limparFiltrosRel(){
-  ['rDataDe','rDataAte','rFilial','rPagamento'].forEach(id=>document.getElementById(id).value='');
+  ['rDataDe','rDataAte','rFilial'].forEach(id=>document.getElementById(id).value='');
   renderRelatorio();
 }
 
@@ -1297,8 +1299,7 @@ function dadosRelExport_(){
   const periodo = (document.getElementById('rDataDe').value ? dataBR(document.getElementById('rDataDe').value) : 'início') +
                   ' até ' + (document.getElementById('rDataAte').value ? dataBR(document.getElementById('rDataAte').value) : 'hoje');
   const filtroTxt = 'Período: ' + periodo +
-    (document.getElementById('rFilial').value ? ' | Filial: ' + document.getElementById('rFilial').value : '') +
-    (document.getElementById('rPagamento').value ? ' | Pagamento: ' + document.getElementById('rPagamento').value : '');
+    (document.getElementById('rFilial').value ? ' | Filial: ' + document.getElementById('rFilial').value : '');
   return { dados, orig, destl, comp, filtroTxt };
 }
 
@@ -1356,6 +1357,45 @@ function exportarRelPDF(){
     startY:y+2, styles:{fontSize:8}, headStyles:{fillColor:[36,26,18]} });
 
   doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
+}
+
+/* ---------- autocomplete de filiais no formulário ---------- */
+let acOpcoes = [];
+function ligarAutocompleteLoja(idInput){
+  const inp = document.getElementById(idInput);
+  const box = document.getElementById('ac_' + idInput);
+  const render = ()=>{
+    const txt = normLoja(inp.value);
+    const todas = Object.keys(mapaFiliais_()).sort();
+    const combinam = txt ? todas.filter(f => f.indexOf(txt) !== -1) : todas;
+    acOpcoes = combinam;
+    let itens = combinam.map((f,i)=>{
+      const nome = txt ? esc(f).replace(esc(txt), '<b>' + esc(txt) + '</b>') : esc(f);
+      return `<div class="ac-item" onmousedown="escolherLoja('${idInput}',${i})">🏬 ${nome}</div>`;
+    }).join('');
+    if (txt && todas.indexOf(txt) === -1){
+      itens += `<div class="ac-item ac-criar" onmousedown="criarLojaInline('${idInput}')">➕ Criar nova filial "${esc(txt)}"</div>`;
+    }
+    box.innerHTML = itens;
+    box.style.display = itens ? 'block' : 'none';
+  };
+  inp.addEventListener('input', render);
+  inp.addEventListener('focus', render);
+  inp.addEventListener('blur', ()=> setTimeout(()=>{ box.style.display = 'none'; }, 200));
+  inp.addEventListener('keydown', e=>{ if (e.key === 'Escape' || e.key === 'Enter') box.style.display = 'none'; });
+}
+function escolherLoja(idInput, i){
+  document.getElementById(idInput).value = acOpcoes[i] || '';
+  document.getElementById('ac_' + idInput).style.display = 'none';
+}
+function criarLojaInline(idInput){
+  const inp = document.getElementById(idInput);
+  const nome = normLoja(inp.value);
+  if (!nome) return;
+  memorizarValores(nome, '', '');
+  inp.value = nome;
+  document.getElementById('ac_' + idInput).style.display = 'none';
+  toast('Filial ' + nome + ' criada ✓');
 }
 
 /* ---------- painel de filiais ---------- */
