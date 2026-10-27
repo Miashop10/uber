@@ -1,1861 +1,471 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Miashop · Transferências via Uber</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-<style>
-:root{
-  --fundo:#F7F4F0; --papel:#FFFFFF; --tinta:#241A12; --cinza:#6B5F53;
-  --linha:#EADFD2; --laranja:#F58634; --laranja-esc:#D96F1E; --laranja-claro:#FDF0E3;
-  --rosa:#E5347F; --azul:#15496B; --verde:#0A8A52; --erro:#C43D2E; --raio:14px;
-  --sombra:0 1px 2px rgba(36,26,18,.06),0 6px 20px rgba(36,26,18,.08);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--fundo);color:var(--tinta);font-size:15px;padding-bottom:60px}
-h1,h2,h3{font-family:'Archivo',sans-serif}
+/*************************************************************
+ * MIASHOP — CONTROLE DE TRANSFERÊNCIAS VIA UBER  (v3)
+ * Backend Google Apps Script
+ *
+ * O QUE ESTE CÓDIGO FAZ SOZINHO (não precisa criar nada manualmente):
+ *  - Cria a planilha "Miashop - Transferências Uber" no seu Google Sheets
+ *  - Cria a pasta "Miashop - Fotos Transferências Uber" no seu Google Drive
+ *  - Salva cada lançamento em UMA LINHA, com CADA CAMPO EM UMA CÉLULA
+ *    separada (nunca estoura o limite de caracteres por célula)
+ *  - Salva as fotos no Drive e grava apenas o link na planilha
+ *  - Permite EDITAR e EXCLUIR lançamentos pelo sistema
+ *  - Permite informar o Nº de Transferência de Estoque depois,
+ *    direto pela lista de lançamentos
+ *
+ * COMO PUBLICAR:
+ *  1. script.google.com > Novo projeto > cole este código
+ *  2. Implantar > Nova implantação > Tipo: App da Web
+ *     - Executar como: EU
+ *     - Quem pode acessar: QUALQUER PESSOA
+ *  3. Copie a URL gerada (termina em /exec) e cole no index.html
+ *     na constante API_URL
+ *************************************************************/
 
-/* ===== Cabeçalho com a logo ===== */
-header{background:#F58634;color:#fff;padding:16px 16px 30px}
-.head-in{width:100%;margin:0;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.logo-img{height:58px;display:block}
-.head-titulo{border-left:2px solid rgba(255,255,255,.45);padding-left:16px}
-.head-titulo small{display:block;color:#FFE1C4;font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
-.head-titulo h1{font-size:19px;font-weight:800;letter-spacing:-.01em}
-@media(max-width:560px){.logo-img{height:44px}.head-titulo h1{font-size:16px}}
+const NOME_PLANILHA   = 'Miashop - Transferências Uber';
+const NOME_ABA        = 'Lancamentos';
+const NOME_PASTA_FOTO = 'Miashop - Fotos Transferências Uber';
 
-.btn-filiais{margin-left:auto;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.55);color:#fff;
-  border-radius:10px;padding:8px 14px;font-family:'Archivo';font-weight:700;font-size:13px;cursor:pointer}
-.btn-filiais:hover{background:rgba(255,255,255,.26)}
-@media(max-width:560px){.btn-filiais{padding:6px 10px;font-size:12px}}
+const CABECALHO = [
+  'ID',                       // A (1)
+  'Data',                     // B (2)
+  'Loja Origem',              // C (3)
+  'Loja Destino',             // D (4)
+  'Códigos dos Produtos',     // E (5)
+  'Nomes dos Produtos',       // F (6)
+  'Quantidades',              // G (7)
+  'Valores dos Produtos (R$)',// H (8)
+  'Valor da Compra (R$)',     // I (9)
+  'Valor do Uber (R$)',       // J (10)
+  'Sequência Venda',          // K (11)
+  'Nº Transf. Estoque',       // L (12)
+  'Forma de Pagamento',       // M (13)
+  'Observações',              // N (14)
+  'Link da Foto',             // O (15)
+  'Registrado em'             // P (16)
+];
+const COL_TRANSF = 12; // coluna do Nº Transf. Estoque
+const COL_FOTO   = 15; // coluna do Link da Foto
 
-/* ===== Painel de filiais ===== */
-.modal-fundo{display:none;position:fixed;inset:0;background:rgba(36,26,18,.55);z-index:150;align-items:flex-start;justify-content:center;padding:40px 14px;overflow-y:auto}
-.modal-fundo.aberto{display:flex}
-.modal-caixa{background:var(--papel);border-radius:16px;box-shadow:0 14px 50px rgba(0,0,0,.3);width:100%;max-width:480px;padding:18px}
-.modal-topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.modal-topo h3{font-size:16px;font-weight:800}
-.modal-topo button{border:none;background:var(--fundo);border-radius:8px;width:30px;height:30px;font-size:14px;cursor:pointer;color:var(--cinza)}
-.nova-filial{display:flex;gap:8px;margin-bottom:14px}
-.nova-filial input{flex:1}
-.nova-filial button{border:none;background:var(--laranja);color:#fff;border-radius:10px;padding:0 16px;font-family:'Archivo';font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
-.fil-item{display:flex;align-items:center;gap:8px;border:1.5px solid var(--linha);border-radius:11px;padding:9px 11px;margin-bottom:8px;flex-wrap:wrap}
-.fil-nome{font-family:'Archivo';font-weight:800;font-size:14px}
-.fil-info{font-size:11.5px;color:var(--cinza)}
-.fil-acoes{margin-left:auto;display:flex;gap:5px}
-.fil-btn{border:1.5px solid var(--linha);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
-.fil-btn.ren{color:var(--azul)} .fil-btn.uni{color:var(--laranja-esc)} .fil-btn.exc{color:var(--erro)}
-.fil-aviso{font-size:12px;color:var(--cinza);margin-bottom:12px;background:var(--fundo);border-radius:9px;padding:9px 11px}
+/* ================= INFRAESTRUTURA (auto-criação) ================= */
 
-/* ===== Abas ===== */
-.abas{width:100%;margin:-18px 0 0;padding:0 16px;display:flex;gap:8px}
-.aba{flex:1;max-width:230px;background:var(--papel);border:1px solid var(--linha);border-radius:12px;padding:11px;
-  font-family:'Archivo';font-weight:700;font-size:14px;color:var(--cinza);cursor:pointer;box-shadow:var(--sombra);text-align:center}
-.aba.ativa{background:var(--tinta);border-color:var(--tinta);color:#fff}
-.aba:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
+function getAba_() {
+  const props = PropertiesService.getScriptProperties();
+  let id = props.getProperty('SHEET_ID');
+  let ss = null;
 
-main{width:100%;margin:18px 0 0;padding:0 16px}
-.painel{display:none}
-.painel.ativo{display:block}
-#painelNovo{max-width:640px;margin:0 auto} /* formulário pensado para o celular */
+  if (id) {
+    try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; }
+  }
+  if (!ss) {
+    ss = SpreadsheetApp.create(NOME_PLANILHA);
+    props.setProperty('SHEET_ID', ss.getId());
+  }
 
-/* ===== Cartões / formulário ===== */
-.cartao{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);padding:18px;margin-bottom:16px}
-.cartao h2{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.cartao h2 .tag{width:22px;height:22px;border-radius:7px;background:var(--laranja-claro);border:1px solid var(--linha);display:grid;place-items:center;font-size:12px;color:var(--laranja-esc)}
-.grade{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.grade .cheio{grid-column:1/-1}
-label{display:block;font-size:12px;font-weight:600;color:var(--cinza);margin-bottom:5px;letter-spacing:.02em}
-input,select,textarea{width:100%;padding:11px;border:1.5px solid var(--linha);border-radius:10px;font:inherit;background:#fff;color:var(--tinta)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--laranja);box-shadow:0 0 0 3px rgba(245,134,52,.18)}
-textarea{resize:vertical;min-height:64px}
-
-/* aviso de edição */
-.banner-edicao{display:none;background:#FFF3E6;border:1.5px solid var(--laranja);border-radius:12px;padding:12px 14px;
-  font-size:13.5px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.banner-edicao b{color:var(--laranja-esc)}
-.banner-edicao button{border:1.5px solid var(--laranja-esc);background:#fff;color:var(--laranja-esc);border-radius:9px;padding:6px 12px;font-weight:700;font-size:12.5px;cursor:pointer}
-
-/* autocomplete de filiais */
-.ac-wrap{position:relative}
-.ac-lista{display:none;position:absolute;top:100%;left:0;right:0;margin-top:3px;background:#fff;border:1.5px solid var(--linha);
-  border-radius:11px;box-shadow:0 8px 26px rgba(36,26,18,.16);z-index:60;max-height:230px;overflow-y:auto}
-.ac-item{padding:10px 13px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--fundo)}
-.ac-item:last-child{border-bottom:none}
-.ac-item:hover,.ac-item:active{background:var(--laranja-claro)}
-.ac-item b{color:var(--laranja-esc)}
-.ac-criar{color:var(--laranja-esc);font-weight:700;border-top:1.5px dashed var(--linha)}
-
-/* rota origem->destino */
-.rota-form{display:grid;grid-template-columns:1fr 34px 1fr;gap:6px;align-items:end}
-.rota-seta{height:43px;display:grid;place-items:center;color:var(--laranja-esc);font-size:20px;font-weight:800}
-
-/* itens de produto */
-.item-card{border:1.5px solid var(--linha);border-radius:12px;padding:10px;margin-bottom:10px;background:#FDFAF6;
-  display:grid;grid-template-columns:1fr 76px 110px 34px;gap:8px;align-items:end}
-.item-card .campo-nome{grid-column:1/-1}
-.item-card input{padding:9px 10px}
-.btn-rem{height:39px;border:1.5px solid var(--linha);background:#fff;border-radius:10px;color:var(--erro);font-size:16px;cursor:pointer}
-.btn-add-item{border:1.5px dashed var(--laranja);background:var(--laranja-claro);color:var(--laranja-esc);border-radius:10px;
-  padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer;width:100%}
-.soma-itens{margin-top:10px;font-size:13px;color:var(--cinza)}
-.soma-itens button{border:none;background:none;color:var(--laranja-esc);font-weight:700;cursor:pointer;font-size:13px;text-decoration:underline;padding:0}
-
-/* foto */
-.foto-botoes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.foto-opcao{border:2px dashed var(--laranja);border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;background:var(--laranja-claro);font:inherit}
-.foto-opcao strong{display:block;color:var(--laranja-esc);font-size:14.5px;margin-top:4px}
-.foto-opcao small{display:block;color:var(--cinza);margin-top:3px;font-size:11.5px}
-.foto-opcao:active{background:#FCE4CB}
-#fotoPreviewWrap{display:none;margin-top:10px;position:relative}
-#fotoPreview{max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--linha)}
-#btnRemFoto{position:absolute;top:6px;left:6px;background:var(--erro);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer}
-.foto-atual{display:none;margin-top:10px;font-size:13px;background:#FDFAF6;border:1.5px solid var(--linha);border-radius:10px;padding:10px 12px}
-.foto-atual a{color:var(--azul);font-weight:700}
-.foto-atual button{border:none;background:none;color:var(--erro);font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline;margin-left:8px}
-
-/* botões */
-.btn{border:none;border-radius:11px;padding:14px 18px;font-family:'Archivo';font-weight:700;font-size:15px;cursor:pointer}
-.btn-laranja{background:var(--laranja);color:#fff;width:100%}
-.btn-laranja:hover{background:var(--laranja-esc)}
-.btn-laranja:disabled{opacity:.55;cursor:wait}
-.btn-claro{background:#fff;border:1.5px solid var(--linha);color:var(--tinta)}
-.btn-claro:hover{border-color:var(--laranja);color:var(--laranja-esc)}
-
-/* ===== Barra de filtros compacta (em cima da tabela) ===== */
-.barra-filtros{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--papel);
-  border:1px solid var(--linha);border-radius:12px;padding:8px 10px;margin-bottom:10px;box-shadow:var(--sombra)}
-.barra-filtros input,.barra-filtros select{width:auto;padding:6px 8px;font-size:12.5px;border-radius:8px;border:1.5px solid var(--linha)}
-.barra-filtros input[type=date]{max-width:130px}
-.f-sep{font-size:11.5px;color:var(--cinza);font-weight:600}
-.f-espaco{flex:1}
-.f-btn{border:1.5px solid var(--linha);background:#fff;color:var(--tinta);border-radius:8px;
-  padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
-.f-btn:hover{border-color:var(--laranja);color:var(--laranja-esc)}
-.f-btn.f-verde{color:var(--verde)} .f-btn.f-verm{color:var(--erro)}
-.f-btn.f-sync{background:var(--laranja);border-color:var(--laranja);color:#fff}
-.f-btn.f-sync:hover{background:var(--laranja-esc);color:#fff}
-.f-btn.f-sync:disabled{opacity:.6;cursor:wait}
-@media(max-width:700px){.f-espaco{display:none}}
-
-/* ===== Totais ===== */
-.totais{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.total-box{background:var(--papel);border:1px solid var(--linha);border-radius:12px;padding:12px 14px;box-shadow:var(--sombra)}
-.total-box small{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--cinza)}
-.total-box b{font-family:'Archivo';font-size:19px}
-.total-compra b{color:var(--azul)} .total-uber b{color:var(--verde)} .total-geral{background:var(--laranja);border-color:var(--laranja)}
-.total-geral small{color:#FFE1C4}.total-geral b{color:#fff}
-@media(max-width:560px){.total-box b{font-size:15px}}
-
-/* ===== Tabela de lançamentos (pensada para o PC) ===== */
-.tabela-wrap{background:var(--papel);border:1px solid var(--linha);border-radius:var(--raio);box-shadow:var(--sombra);overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:13px;table-layout:auto}
-@media(max-width:900px){table{min-width:940px}} /* no celular a tabela desliza para o lado */
-/* Lançamentos no PC: larguras fixas em % — a tabela ocupa exatamente 100% da tela,
-   sem vão entre colunas e sem rolagem lateral. Textos longos quebram linha dentro da célula. */
-@media(min-width:901px){
-  #listaRegistros table{table-layout:fixed;width:100%}
-  #listaRegistros th:nth-child(1){width:6.5%}   /* Data */
-  #listaRegistros th:nth-child(2){width:12.5%}  /* Rota */
-  #listaRegistros th:nth-child(3){width:30%}    /* Produtos */
-  #listaRegistros th:nth-child(4){width:7%}     /* Total produtos */
-  #listaRegistros th:nth-child(5){width:6.5%}   /* Uber */
-  #listaRegistros th:nth-child(6){width:7%}     /* Total */
-  #listaRegistros th:nth-child(7){width:10%}    /* Seq./Transf. */
-  #listaRegistros th:nth-child(8){width:11%}    /* Obs. */
-  #listaRegistros th:nth-child(9){width:9.5%}   /* Ações */
-  #listaRegistros th{white-space:normal}
-  #listaRegistros .rota-cel{white-space:normal;overflow-wrap:anywhere}
-  #listaRegistros .obs-cel{max-width:none;white-space:normal;overflow-wrap:anywhere}
-  #listaRegistros .chip,#listaRegistros .chip-transf,#listaRegistros .chip-pendente{max-width:100%;overflow:hidden;text-overflow:ellipsis}
-  #listaRegistros td:nth-child(9){white-space:normal}
-}
-thead th{position:sticky;top:0;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:10.8px;
-  letter-spacing:.02em;text-transform:uppercase;padding:9px 7px;text-align:left;z-index:2}
-tbody td{padding:8px 7px;border-bottom:1px solid var(--linha);vertical-align:top}
-tbody tr:nth-child(even){background:#FBF7F1}
-tbody tr:hover{background:var(--laranja-claro)}
-td.num{text-align:right;white-space:nowrap;font-weight:600}
-td.nowrap{white-space:nowrap}
-.linha-itens{line-height:1.5}
-.cod-mono{font-family:ui-monospace,monospace;color:var(--azul);font-weight:600}
-tfoot td{padding:11px 9px;background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700;font-size:13px;white-space:nowrap}
-tfoot td.num{text-align:right}
-.chip{font-size:11px;font-weight:700;background:var(--fundo);border:1px solid var(--linha);color:var(--cinza);border-radius:99px;padding:2px 8px;white-space:nowrap}
-.chip-transf{font-size:11px;font-weight:700;background:rgba(21,73,107,.08);border:1px solid rgba(21,73,107,.3);color:var(--azul);border-radius:99px;padding:2px 9px;white-space:nowrap;cursor:pointer}
-.chip-pendente{font-size:11px;font-weight:700;border:1.5px dashed var(--laranja-esc);background:none;color:var(--laranja-esc);border-radius:99px;padding:2px 9px;cursor:pointer;white-space:nowrap}
-.acao-btn{border:1.5px solid var(--linha);background:#fff;border-radius:8px;padding:4px 7px;font-size:13px;cursor:pointer;white-space:nowrap;margin:1px;display:inline-block}
-.acao-btn.ed{color:var(--azul)} .acao-btn.ex{color:var(--erro)} .acao-btn.ft{color:var(--laranja-esc)}
-.rota-cel{white-space:nowrap}
-.rota-cel .seta{color:var(--laranja-esc);font-weight:800}
-.prod-linha{display:block;line-height:1.45}
-.prod-linha .qv{color:var(--cinza);font-weight:600}
-.obs-cel{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cinza);cursor:help}
-.st-col{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
-.vazio{text-align:center;color:var(--cinza);padding:40px 10px}
-.vazio b{font-family:'Archivo';display:block;font-size:16px;color:var(--tinta);margin-bottom:4px}
-
-/* toast + loading */
-#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);background:var(--tinta);color:#fff;
-  padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:var(--sombra);transition:.3s;z-index:99;max-width:92vw}
-#toast.show{transform:translateX(-50%) translateY(0)}
-#toast.erro{background:var(--erro)}
-.carregando{text-align:center;padding:30px;color:var(--cinza)}
-.spin{display:inline-block;width:22px;height:22px;border:3px solid var(--linha);border-top-color:var(--laranja);border-radius:50%;animation:g .8s linear infinite;vertical-align:middle;margin-right:8px}
-@keyframes g{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion: reduce){.spin{animation-duration:2s}#toast{transition:none}}
-.aviso-config{background:#FFF6E5;border:1.5px solid #E8C87A;border-radius:12px;padding:12px 14px;font-size:13.5px;color:#7A5A10;margin-bottom:14px;display:none}
-
-/* ===== Financeiro E-commerce ===== */
-@media(min-width:901px){
-  #listaEcom table{table-layout:fixed;width:100%}
-  #listaEcom th:nth-child(1){width:6.5%}   /* Data */
-  #listaEcom th:nth-child(2){width:9%}     /* Loja */
-  #listaEcom th:nth-child(3){width:8.5%}   /* Pagamento */
-  #listaEcom th:nth-child(4){width:7%}     /* Preço final */
-  #listaEcom th:nth-child(5){width:7%}     /* Custo */
-  #listaEcom th:nth-child(6){width:9%}     /* Confirmação */
-  #listaEcom th:nth-child(7){width:7%}     /* Sequência */
-  #listaEcom th:nth-child(8){width:7%}     /* OC Uber */
-  #listaEcom th:nth-child(9){width:12%}    /* Cliente */
-  #listaEcom th:nth-child(10){width:9.5%}  /* Atendimento */
-  #listaEcom th:nth-child(11){width:10%}   /* ID pedido */
-  #listaEcom th:nth-child(12){width:7.5%}  /* Ações */
-  #listaEcom th{white-space:normal}
-  #listaEcom td{overflow-wrap:anywhere}
-  #listaEcom td.num,#listaEcom td.nowrap{overflow-wrap:normal}
-}
-.chip-conf{font-size:11px;font-weight:800;border-radius:99px;padding:3px 9px;cursor:pointer;border:1.5px solid;white-space:nowrap}
-.chip-conf.ok{background:rgba(10,138,82,.1);border-color:rgba(10,138,82,.45);color:var(--verde)}
-.chip-conf.pend{background:rgba(217,111,30,.08);border-color:rgba(217,111,30,.45);color:var(--laranja-esc)}
-#bannerEcom{display:none;margin-bottom:12px}
-
-/* ===== Relatórios ===== */
-#painelRel .totais{grid-template-columns:repeat(4,1fr)}
-@media(max-width:700px){#painelRel .totais{grid-template-columns:repeat(2,1fr)}}
-.th-sort{cursor:pointer;user-select:none;white-space:nowrap}
-.th-sort:hover{text-decoration:underline}
-.th-sort.ativo{color:#FFD9A8}
-.rel-grade{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:900px){.rel-grade{grid-template-columns:1fr}}
-.rel-tab{width:100%;border-collapse:collapse;font-size:13px}
-.rel-tab th{background:var(--tinta);color:#fff;font-family:'Archivo';font-size:10.8px;text-transform:uppercase;letter-spacing:.02em;padding:8px 9px;text-align:left}
-.rel-tab td{padding:8px 9px;border-bottom:1px solid var(--linha)}
-.rel-tab tr:nth-child(even){background:#FBF7F1}
-.rel-tab td.num{text-align:right;white-space:nowrap;font-weight:600}
-.rel-tab .barra{height:7px;border-radius:99px;background:var(--laranja);min-width:3px;display:block;margin-top:3px}
-.rel-tab .barra.azul{background:var(--azul)}
-.rel-tab tfoot td{background:var(--tinta);color:#fff;font-family:'Archivo';font-weight:700}
-.rel-vazio{color:var(--cinza);padding:16px;text-align:center;font-size:13.5px}
-
-/* ===== Visualizador de foto ampliada ===== */
-.lightbox{display:none;position:fixed;inset:0;background:rgba(20,12,5,.88);z-index:200;
-  align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;cursor:zoom-out}
-.lightbox.aberta{display:flex}
-.lightbox img{max-width:96vw;max-height:82vh;border-radius:12px;box-shadow:0 10px 50px rgba(0,0,0,.6);cursor:default}
-.lightbox .lb-acoes{display:flex;gap:10px}
-.lightbox .lb-btn{border:none;border-radius:10px;padding:10px 16px;font-family:'Archivo';font-weight:700;
-  font-size:13.5px;cursor:pointer;background:#fff;color:var(--tinta)}
-.lightbox .lb-btn.fechar{background:var(--laranja);color:#fff}
-.lightbox .lb-erro{color:#fff;font-size:14px;text-align:center;display:none}
-</style>
-</head>
-<body>
-
-<header>
-  <div class="head-in">
-    <img class="logo-img" src="data:image/jpeg;base64,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" alt="Miashop">
-    <div class="head-titulo">
-      <small>Logística entre lojas</small>
-      <h1>Transferências via Uber</h1>
-    </div>
-    <button class="btn-filiais" onclick="abrirFiliais()" title="Gerenciar filiais">🏬 Filiais</button>
-  </div>
-</header>
-
-<nav class="abas">
-  <button class="aba ativa" id="abaNovo" onclick="trocarAba('novo')">+ Novo lançamento</button>
-  <button class="aba" id="abaLista" onclick="trocarAba('lista')">Lançamentos</button>
-  <button class="aba" id="abaRel" onclick="trocarAba('rel')">Relatórios</button>
-  <button class="aba" id="abaEcom" onclick="trocarAba('ecom')">Financeiro E-commerce</button>
-</nav>
-
-<main>
-<div class="aviso-config" id="avisoConfig">
-  ⚠️ <b>Configure a API:</b> abra o <code>index.html</code> e cole a URL do Apps Script na constante <code>API_URL</code> (topo do script).
-</div>
-
-<!-- ==================== NOVO LANÇAMENTO (celular) ==================== -->
-<section class="painel ativo" id="painelNovo" autocomplete="off">
-
-  <div class="banner-edicao" id="bannerEdicao">
-    <span>✎ <b>Editando lançamento</b> — <span id="bannerEdicaoInfo"></span></span>
-    <button type="button" onclick="cancelarEdicao()">Cancelar edição</button>
-  </div>
-
-  <div class="cartao">
-    <h2><span class="tag">1</span> Foto</h2>
-    <div class="foto-botoes">
-      <button type="button" class="foto-opcao" onclick="document.getElementById('inputFoto').click()">
-        📷 <strong>Tirar foto</strong>
-        <small>Abre a câmera</small>
-      </button>
-      <button type="button" class="foto-opcao" onclick="document.getElementById('inputGaleria').click()">
-        🖼️ <strong>Galeria / prints</strong>
-        <small>Fotos salvas no celular</small>
-      </button>
-    </div>
-    <small style="display:block;text-align:center;color:var(--cinza);margin-top:8px">Comprovante do Uber, produto, nota ou print — salva direto no Google Drive</small>
-    <input type="file" id="inputFoto" accept="image/*" capture="environment" hidden onchange="carregarFoto(this)">
-    <input type="file" id="inputGaleria" accept="image/*" hidden onchange="carregarFoto(this)">
-    <div id="fotoPreviewWrap">
-      <img id="fotoPreview" alt="Pré-visualização da foto">
-      <button type="button" id="btnRemFoto" onclick="removerFoto()">✕ Remover</button>
-    </div>
-    <div class="foto-atual" id="fotoAtualBox">
-      📎 Este lançamento já tem foto: <a id="fotoAtualLink" href="#" target="_blank" rel="noopener">ver no Drive</a>
-      <button type="button" onclick="removerFotoAtual()">remover foto atual</button>
-      <div style="color:var(--cinza);margin-top:3px">Tirar uma nova foto substitui a atual.</div>
-    </div>
-  </div>
-
-  <div class="cartao">
-    <h2><span class="tag">2</span> Rota da transferência</h2>
-    <div class="rota-form">
-      <div class="ac-wrap">
-        <label for="lojaOrigem">Loja de origem (saiu de)</label>
-        <input type="text" id="lojaOrigem" autocomplete="off" placeholder="Digite a loja">
-        <div class="ac-lista" id="ac_lojaOrigem"></div>
-      </div>
-      <div class="rota-seta">→</div>
-      <div class="ac-wrap">
-        <label for="lojaDestino">Loja de destino (foi para)</label>
-        <input type="text" id="lojaDestino" autocomplete="off" placeholder="Digite a loja">
-        <div class="ac-lista" id="ac_lojaDestino"></div>
-      </div>
-    </div>
-    <div class="grade" style="margin-top:12px">
-      <div>
-        <label for="data">Data</label>
-        <input type="date" id="data">
-      </div>
-      <div>
-        <label for="numSequencia">Sequência venda</label>
-        <input type="text" id="numSequencia" autocomplete="off" placeholder="Ex.: 1024 / 25-A">
-      </div>
-      <div>
-        <label for="numTransferencia">Sequência transferência</label>
-        <input type="text" id="numTransferencia" autocomplete="off" placeholder="Nº transf. estoque">
-      </div>
-    </div>
-  </div>
-
-  <div class="cartao">
-    <h2><span class="tag">3</span> Produtos transferidos</h2>
-    <div id="listaItens"></div>
-    <button type="button" class="btn-add-item" onclick="addItem()">+ Adicionar outro produto</button>
-    <div class="soma-itens" id="somaItens" style="display:none"></div>
-  </div>
-
-  <div class="cartao">
-    <h2><span class="tag">4</span> Valores e observações</h2>
-    <div class="grade">
-      <div>
-        <label for="valorCompra">Valor da compra total (R$)</label>
-        <input type="number" id="valorCompra" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div>
-        <label for="valorUber">Valor do Uber (R$)</label>
-        <input type="number" id="valorUber" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div class="cheio">
-        <label for="observacoes">Observações</label>
-        <textarea id="observacoes" placeholder="Anotações adicionais sobre esta transferência..."></textarea>
-      </div>
-    </div>
-  </div>
-
-  <button class="btn btn-laranja" id="btnSalvar" onclick="salvar()">Salvar lançamento</button>
-</section>
-
-<!-- ==================== LANÇAMENTOS (PC) ==================== -->
-<section class="painel" id="painelLista">
-
-  <div class="barra-filtros">
-    <input type="date" id="fDataDe" title="Data de" onchange="renderLista()">
-    <span class="f-sep">até</span>
-    <input type="date" id="fDataAte" title="Data até" onchange="renderLista()">
-    <select id="fOrigem" title="Loja origem" onchange="renderLista()"><option value="">Loja origem: todas</option></select>
-    <select id="fDestino" title="Loja destino" onchange="renderLista()"><option value="">Loja destino: todas</option></select>
-    <button class="f-btn" title="Limpar filtros" onclick="limparFiltros()">✕ Limpar</button>
-    <span class="f-espaco"></span>
-    <button class="f-btn f-sync" id="btnSync" title="Enviar para a nuvem tudo o que está neste computador e baixar a lista completa" onclick="sincronizar()">☁ Sincronizar</button>
-    <button class="f-btn" title="Recarregar da planilha" onclick="carregarRegistros()">↺</button>
-    <button class="f-btn f-verde" onclick="exportarExcel()">⬇ Excel</button>
-    <button class="f-btn f-verm" onclick="exportarPDF()">⬇ PDF</button>
-  </div>
-
-  <div class="totais">
-    <div class="total-box total-compra"><small>Total produtos transferidos</small><b id="totCompra">R$ 0,00</b></div>
-    <div class="total-box total-uber"><small>Total Uber</small><b id="totUber">R$ 0,00</b></div>
-    <div class="total-box total-geral"><small>Total geral</small><b id="totGeral">R$ 0,00</b></div>
-  </div>
-
-  <div id="listaRegistros"><div class="carregando"><span class="spin"></span>Carregando lançamentos...</div></div>
-</section>
-
-<!-- ==================== RELATÓRIOS ==================== -->
-<section class="painel" id="painelRel">
-
-  <div class="barra-filtros">
-    <input type="date" id="rDataDe" title="Data de" onchange="renderRelatorio()">
-    <span class="f-sep">até</span>
-    <input type="date" id="rDataAte" title="Data até" onchange="renderRelatorio()">
-    <select id="rFilial" title="Filial" onchange="renderRelatorio()"><option value="">Filial: todas</option></select>
-    <button class="f-btn" title="Limpar filtros" onclick="limparFiltrosRel()">✕ Limpar</button>
-    <span class="f-espaco"></span>
-    <button class="f-btn f-verde" onclick="exportarRelExcel()">⬇ Excel</button>
-    <button class="f-btn f-verm" onclick="exportarRelPDF()">⬇ PDF</button>
-  </div>
-
-  <div class="totais">
-    <div class="total-box total-compra"><small>Ubers no período</small><b id="rTotQtd">0</b></div>
-    <div class="total-box total-uber"><small>Valor total de Uber</small><b id="rTotUber">R$ 0,00</b></div>
-    <div class="total-box total-compra"><small>Valor produtos transferidos</small><b id="rTotProd">R$ 0,00</b></div>
-    <div class="total-box total-geral"><small>Média por Uber</small><b id="rTotMedia">R$ 0,00</b></div>
-  </div>
-
-  <div class="rel-grade">
-    <div class="cartao" style="margin-bottom:0">
-      <h2><span class="tag">⬆</span> Uber por filial de ORIGEM (quem enviou)</h2>
-      <div id="relOrigem"></div>
-    </div>
-    <div class="cartao" style="margin-bottom:0">
-      <h2><span class="tag">⬇</span> Uber por filial de DESTINO (quem recebeu)</h2>
-      <div id="relDestino"></div>
-    </div>
-  </div>
-
-  <div class="cartao" style="margin-top:16px">
-    <h2><span class="tag">⇄</span> Comparativo por filial — enviou × recebeu</h2>
-    <div id="relComparativo"></div>
-  </div>
-</section>
-
-<!-- ==================== FINANCEIRO E-COMMERCE ==================== -->
-<section class="painel" id="painelEcom">
-
-  <div class="cartao">
-    <h2><span class="tag">＋</span> <span id="ecomTituloForm">Nova venda e-commerce</span></h2>
-    <div class="banner-edicao" id="bannerEcom">
-      <span>✎ <b>Editando venda</b> — <span id="bannerEcomInfo"></span></span>
-      <button type="button" onclick="cancelarEdicaoEcom()">Cancelar edição</button>
-    </div>
-    <div class="grade grade-ecom">
-      <div>
-        <label for="eData">Data</label>
-        <input type="date" id="eData">
-      </div>
-      <div class="ac-wrap">
-        <label for="eLoja">Loja saída de produto</label>
-        <input type="text" id="eLoja" autocomplete="off" placeholder="Digite a loja">
-        <div class="ac-lista" id="ac_eLoja"></div>
-      </div>
-      <div>
-        <label for="ePagamento">Forma de pagamento</label>
-        <select id="ePagamento">
-          <option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
-          <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
-        </select>
-      </div>
-      <div>
-        <label for="eConfirmacao">Confirmação de pagamento</label>
-        <select id="eConfirmacao">
-          <option>PENDENTE</option><option>CONFIRMADO</option>
-        </select>
-      </div>
-      <div>
-        <label for="ePrecoFinal">Preço final (R$)</label>
-        <input type="number" id="ePrecoFinal" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div>
-        <label for="ePrecoCusto">Preço de custo (R$)</label>
-        <input type="number" id="ePrecoCusto" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
-      </div>
-      <div>
-        <label for="eSequencia">Sequência da venda</label>
-        <input type="text" id="eSequencia" autocomplete="off" placeholder="Nº da sequência">
-      </div>
-      <div>
-        <label for="eOcUber">O.C Uber</label>
-        <select id="eOcUber">
-          <option value="">—</option><option>RETIRADA</option><option>XPRESS</option>
-        </select>
-      </div>
-      <div>
-        <label for="eCliente">Cliente</label>
-        <input type="text" id="eCliente" autocomplete="off" placeholder="Nome do cliente">
-      </div>
-      <div>
-        <label for="eAtendimento">Atendimento</label>
-        <input type="text" id="eAtendimento" autocomplete="off" placeholder="Quem atendeu">
-      </div>
-      <div class="meio">
-        <label for="eIdPedido">ID do pedido</label>
-        <input type="text" id="eIdPedido" autocomplete="off" placeholder="Nº / código do pedido">
-      </div>
-    </div>
-    <button class="btn btn-laranja" id="btnSalvarEcom" style="margin-top:14px" onclick="salvarEcom()">Salvar venda</button>
-  </div>
-
-  <div class="barra-filtros">
-    <input type="date" id="efDataDe" title="Data de" onchange="renderEcom()">
-    <span class="f-sep">até</span>
-    <input type="date" id="efDataAte" title="Data até" onchange="renderEcom()">
-    <select id="efLoja" title="Loja" onchange="renderEcom()"><option value="">Loja: todas</option></select>
-    <select id="efPagamento" title="Forma de pagamento" onchange="renderEcom()">
-      <option value="">Pagamento: todos</option><option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
-      <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
-    </select>
-    <select id="efConfirmacao" title="Confirmação" onchange="renderEcom()">
-      <option value="">Confirmação: todas</option><option>CONFIRMADO</option><option>PENDENTE</option>
-    </select>
-    <button class="f-btn" title="Limpar filtros" onclick="limparFiltrosEcom()">✕ Limpar</button>
-    <span class="f-espaco"></span>
-    <button class="f-btn" title="Recarregar da planilha" onclick="carregarEcom(true)">↺</button>
-  </div>
-
-  <div class="totais">
-    <div class="total-box total-compra"><small>Preço final</small><b id="eTotFinal">R$ 0,00</b></div>
-    <div class="total-box total-uber"><small>Preço de custo</small><b id="eTotCusto">R$ 0,00</b></div>
-    <div class="total-box total-geral"><small>Diferença (final − custo)</small><b id="eTotLucro">R$ 0,00</b></div>
-  </div>
-
-  <div id="listaEcom"><div class="carregando"><span class="spin"></span>Carregando vendas...</div></div>
-</section>
-</main>
-
-<div class="modal-fundo" id="modalFiliais" onclick="fecharFiliais(event)">
-  <div class="modal-caixa" onclick="event.stopPropagation()">
-    <div class="modal-topo">
-      <h3>🏬 Filiais</h3>
-      <button onclick="fecharFiliais()" title="Fechar">✕</button>
-    </div>
-    <div class="fil-aviso">Unificar transfere TODOS os envios e recebimentos de uma filial para outra — use para juntar nomes diferentes da mesma filial (ex.: BATEL 1 → B1).</div>
-    <div class="nova-filial">
-      <input type="text" id="novaFilial" placeholder="Nome da nova filial" autocomplete="off">
-      <button onclick="criarFilial()">+ Criar</button>
-    </div>
-    <div id="listaFiliais"></div>
-  </div>
-</div>
-
-<datalist id="sugLojas"></datalist>
-<datalist id="sugPagamentos"></datalist>
-<div id="toast"></div>
-
-<div class="lightbox" id="lightbox" onclick="fecharFoto(event)">
-  <img id="lightboxImg" alt="Foto da transferência" onclick="event.stopPropagation()"
-       onerror="this.style.display='none';document.getElementById('lbErro').style.display='block'">
-  <div class="lb-erro" id="lbErro">Não foi possível carregar a imagem aqui.<br>Use o botão abaixo para abrir no Drive.</div>
-  <div class="lb-acoes" onclick="event.stopPropagation()">
-    <button class="lb-btn" onclick="window.open(fotoAberta,'_blank')">Abrir no Drive</button>
-    <button class="lb-btn fechar" onclick="fecharFoto()">✕ Fechar</button>
-  </div>
-</div>
-
-<script>
-/* ============================================================
-   CONFIGURAÇÃO — edite apenas esta linha
-   ============================================================ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwT4ZEwSM4pfgfIYvhCFMAy-BqZMqmhVUdYzQ8zKY7mWRoo5HGnT23TDkiIJ2kv7Trq/exec'; // URL /exec da implantação do Apps Script
-/* ============================================================ */
-
-let registros = [];
-let editandoId = null;
-
-// Padroniza o nome da filial: "vm", "Vm", " VM " → "VM" (unifica maiúsculas/minúsculas)
-function normLoja(s){
-  return String(s||'').trim().replace(/\s+/g,' ').toUpperCase();
-}
-let fotoAtualUrl = '';
-let fotoRemover = false;
-
-/* ---------- inicialização ---------- */
-document.addEventListener('DOMContentLoaded', () => {
-  if (API_URL.indexOf('COLE_AQUI') === 0) document.getElementById('avisoConfig').style.display = 'block';
-  document.getElementById('data').value = hojeISO();
-  ligarAutocompleteLoja('lojaOrigem');
-  ligarAutocompleteLoja('lojaDestino');
-  ligarAutocompleteLoja('eLoja');
-  document.getElementById('eData').value = hojeISO();
-  addItem();
-  memorizarValores(); // carrega lojas/pagamentos já salvos neste navegador
-  carregarRegistros();
-});
-
-function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-
-function trocarAba(qual){
-  ['Novo','Lista','Rel','Ecom'].forEach(p=>{
-    document.getElementById('painel'+p).classList.toggle('ativo', qual===p.toLowerCase().replace('novo','novo'));
-  });
-  document.getElementById('painelNovo').classList.toggle('ativo', qual==='novo');
-  document.getElementById('painelLista').classList.toggle('ativo', qual==='lista');
-  document.getElementById('painelRel').classList.toggle('ativo', qual==='rel');
-  document.getElementById('painelEcom').classList.toggle('ativo', qual==='ecom');
-  document.getElementById('abaNovo').classList.toggle('ativa', qual==='novo');
-  document.getElementById('abaLista').classList.toggle('ativa', qual==='lista');
-  document.getElementById('abaRel').classList.toggle('ativa', qual==='rel');
-  document.getElementById('abaEcom').classList.toggle('ativa', qual==='ecom');
-  if (qual==='rel') renderRelatorio();
-  if (qual==='ecom') carregarEcom();
+  let aba = ss.getSheetByName(NOME_ABA);
+  if (!aba) {
+    aba = ss.getSheets()[0];
+    aba.setName(NOME_ABA);
+  }
+  if (aba.getLastRow() === 0) {
+    aba.appendRow(CABECALHO);
+    aba.setFrozenRows(1);
+    aba.getRange(1, 1, 1, CABECALHO.length)
+       .setFontWeight('bold')
+       .setBackground('#F58634')
+       .setFontColor('#FFFFFF');
+    aba.setColumnWidths(1, CABECALHO.length, 150);
+  }
+  // Formato TEXTO nas colunas de códigos, produtos, quantidades, valores,
+  // sequência e nº de transferência — impede o Sheets de converter
+  // códigos como "12-4" ou "1/2" em DATAS.
+  // Roda UMA vez só (marcado em propriedade) para não atrasar as chamadas.
+  if (!props.getProperty('FMT_OK_V2')) {
+    aba.getRange('E:H').setNumberFormat('@');
+    aba.getRange('K:L').setNumberFormat('@');
+    props.setProperty('FMT_OK_V2', '1');
+  }
+  return aba;
 }
 
-/* ---------- sugestões (lojas e pagamentos já usados) ---------- */
-function lerCache(chave){
-  try { return JSON.parse(localStorage.getItem(chave)) || []; } catch(e){ return []; }
-}
-function gravarCache(chave, lista){
-  try { localStorage.setItem(chave, JSON.stringify([...lista].sort())); } catch(e){}
+function getPastaFotos_() {
+  const props = PropertiesService.getScriptProperties();
+  let id = props.getProperty('FOLDER_ID');
+  let pasta = null;
+
+  if (id) {
+    try { pasta = DriveApp.getFolderById(id); } catch (e) { pasta = null; }
+  }
+  if (!pasta) {
+    pasta = DriveApp.createFolder(NOME_PASTA_FOTO);
+    props.setProperty('FOLDER_ID', pasta.getId());
+  }
+  return pasta;
 }
 
-function atualizarSugestoes(){
-  // une o que está na planilha com o que foi salvo neste navegador
-  const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean)), pags = new Set(lerCache('miashop_pagamentos'));
-  registros.forEach(r=>{
-    if(r.lojaOrigem) lojas.add(normLoja(r.lojaOrigem));
-    if(r.lojaDestino) lojas.add(normLoja(r.lojaDestino));
-    if(r.formaPagamento) pags.add(r.formaPagamento);
-  });
-  gravarCache('miashop_lojas', lojas);
-  gravarCache('miashop_pagamentos', pags);
-  document.getElementById('sugLojas').innerHTML = [...lojas].sort().map(l=>`<option value="${esc(l)}">`).join('');
-  document.getElementById('sugPagamentos').innerHTML = [...pags].sort().map(p=>`<option value="${esc(p)}">`).join('');
-  preencherSelect('fOrigem', [...lojas].sort(), 'Loja origem: todas');
-  preencherSelect('fDestino', [...lojas].sort(), 'Loja destino: todas');
-  preencherSelect('rFilial', [...lojas].sort(), 'Filial: todas');
+/* ============== ABA FINANCEIRO E-COMMERCE (mesma planilha) ============== */
+
+const NOME_ABA_ECOM = 'Ecommerce';
+const CABECALHO_ECOM = [
+  'ID',                      // A
+  'Data',                    // B
+  'Loja Saída',              // C
+  'Forma de Pagamento',      // D
+  'Preço Final (R$)',        // E
+  'Preço de Custo (R$)',     // F
+  'Confirmação Pagamento',   // G
+  'Sequência Venda',         // H
+  'Venda Através',           // I
+  'Cliente',                 // J
+  'Atendimento',             // K
+  'ID Pedido',               // L
+  'Registrado em'            // M
+];
+
+function getAbaEcom_() {
+  const ss = getAba_().getParent(); // garante que a planilha existe
+  let aba = ss.getSheetByName(NOME_ABA_ECOM);
+  if (!aba) aba = ss.insertSheet(NOME_ABA_ECOM);
+  if (aba.getLastRow() === 0) {
+    aba.appendRow(CABECALHO_ECOM);
+    aba.setFrozenRows(1);
+    aba.getRange(1, 1, 1, CABECALHO_ECOM.length)
+       .setFontWeight('bold').setBackground('#F58634').setFontColor('#FFFFFF');
+    aba.setColumnWidths(1, CABECALHO_ECOM.length, 140);
+    aba.getRange('H:L').setNumberFormat('@'); // sequência, canal, cliente, atendimento e ID como TEXTO
+  }
+  // ajuste único do cabeçalho em planilhas antigas (O.C Uber → Venda Através)
+  const propsE = PropertiesService.getScriptProperties();
+  if (!propsE.getProperty('ECOM_HDR_V2')) {
+    if (String(aba.getRange(1, 9).getValue()) === 'O.C Uber') aba.getRange(1, 9).setValue('Venda Através');
+    propsE.setProperty('ECOM_HDR_V2', '1');
+  }
+  return aba;
 }
 
-// registra imediatamente os valores digitados, para já aparecerem no próximo lançamento
-function memorizarValores(origem, destino, pagamento){
-  const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean));
-  const pags = new Set(lerCache('miashop_pagamentos'));
-  if(origem) lojas.add(normLoja(origem));
-  if(destino) lojas.add(normLoja(destino));
-  if(pagamento) pags.add(pagamento);
-  gravarCache('miashop_lojas', lojas);
-  gravarCache('miashop_pagamentos', pags);
-  document.getElementById('sugLojas').innerHTML = [...lojas].sort().map(l=>`<option value="${esc(l)}">`).join('');
-  document.getElementById('sugPagamentos').innerHTML = [...pags].sort().map(p=>`<option value="${esc(p)}">`).join('');
+function salvarEcom_(d) {
+  const trava = LockService.getScriptLock();
+  trava.waitLock(30000);
+  try {
+    const aba = getAbaEcom_();
+    if (d.id && acharLinha_(aba, d.id) !== -1) return { ok: true, id: d.id, jaExistia: true };
+    const id = d.id || Utilities.getUuid();
+    aba.appendRow([
+      id, d.data || '', normLoja_(d.loja), d.pagamento || '',
+      Number(d.precoFinal) || 0, Number(d.precoCusto) || 0,
+      d.confirmacao || 'PENDENTE', d.sequencia || '', d.canal || '',
+      d.cliente || '', d.atendimento || '', d.idPedido || '',
+      Utilities.formatDate(new Date(), 'GMT-3', 'dd/MM/yyyy HH:mm:ss')
+    ]);
+    return { ok: true, id: id };
+  } finally { trava.releaseLock(); }
 }
 
-function preencherSelect(id, valores, rotuloTodos){
-  const sel = document.getElementById(id);
-  const atual = sel.value;
-  sel.innerHTML = `<option value="">${rotuloTodos}</option>` + valores.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if ([...sel.options].some(o=>o.value===atual)) sel.value = atual;
+function editarEcom_(d) {
+  if (!d.id) return { ok: false, erro: 'ID não informado.' };
+  const aba = getAbaEcom_();
+  const linha = acharLinha_(aba, d.id);
+  if (linha === -1) return { ok: false, erro: 'Registro não encontrado.' };
+  aba.getRange(linha, 2, 1, 11).setValues([[
+    d.data || '', normLoja_(d.loja), d.pagamento || '',
+    Number(d.precoFinal) || 0, Number(d.precoCusto) || 0,
+    d.confirmacao || 'PENDENTE', d.sequencia || '', d.canal || '',
+    d.cliente || '', d.atendimento || '', d.idPedido || ''
+  ]]);
+  return { ok: true };
 }
 
-/* ---------- itens de produto ---------- */
-function addItem(cod, nome, qtd, val){
-  const div = document.createElement('div');
-  div.className = 'item-card';
-  div.innerHTML =
-    `<div class="campo-nome">
-       <label>Nome do produto</label>
-       <input type="text" class="i-nome" placeholder="Nome do produto" autocomplete="off">
-     </div>
-     <div>
-       <label>Código</label>
-       <input type="text" class="i-cod" placeholder="Código" autocomplete="off">
-     </div>
-     <div>
-       <label>Qtd</label>
-       <input type="number" class="i-qtd" placeholder="Qtd" min="1" inputmode="numeric" oninput="atualizarSoma()">
-     </div>
-     <div>
-       <label>Valor (R$)</label>
-       <input type="number" class="i-valor" placeholder="0,00" step="0.01" min="0" inputmode="decimal" oninput="atualizarSoma()">
-     </div>
-     <button type="button" class="btn-rem" title="Remover produto" onclick="this.parentElement.remove();atualizarSoma()">✕</button>`;
-  if (nome !== undefined) div.querySelector('.i-nome').value = nome === '-' ? '' : nome;
-  if (cod  !== undefined) div.querySelector('.i-cod').value  = cod  === '-' ? '' : cod;
-  if (qtd  !== undefined) div.querySelector('.i-qtd').value  = qtd  === '-' ? '' : qtd;
-  if (val  !== undefined) div.querySelector('.i-valor').value = val === '-' ? '' : val;
-  document.getElementById('listaItens').appendChild(div);
+function listarEcom_() {
+  const aba = getAbaEcom_();
+  const total = aba.getLastRow();
+  if (total < 2) return { ok: true, registros: [] };
+  const vals = aba.getRange(2, 1, total - 1, CABECALHO_ECOM.length).getValues();
+  const registros = vals.map(function (l) {
+    return {
+      id: l[0], data: formatarData_(l[1]), loja: normLoja_(l[2]),
+      pagamento: String(l[3]), precoFinal: Number(l[4]) || 0, precoCusto: Number(l[5]) || 0,
+      confirmacao: String(l[6]), sequencia: texto_(l[7]), canal: String(l[8]),
+      cliente: String(l[9]), atendimento: String(l[10]), idPedido: texto_(l[11]),
+      registradoEm: String(l[12])
+    };
+  }).reverse();
+  return { ok: true, registros: registros };
 }
 
-function coletarItens(){
-  const linhas = document.querySelectorAll('#listaItens .item-card');
-  const cods=[], nomes=[], qtds=[], vals=[];
-  linhas.forEach(l=>{
-    const c=l.querySelector('.i-cod').value.trim();
-    const n=l.querySelector('.i-nome').value.trim();
-    const q=l.querySelector('.i-qtd').value.trim();
-    const v=l.querySelector('.i-valor').value.trim();
-    if(c||n||q||v){
-      cods.push(c||'-'); nomes.push(n||'-'); qtds.push(q||'-');
-      vals.push(v ? (parseFloat(v)||0).toFixed(2) : '-');
+function excluirEcom_(id) {
+  if (!id) return { ok: false, erro: 'ID não informado.' };
+  const aba = getAbaEcom_();
+  const linha = acharLinha_(aba, id);
+  if (linha === -1) return { ok: false, erro: 'Registro não encontrado.' };
+  aba.deleteRow(linha);
+  return { ok: true };
+}
+
+/* ========================= ENDPOINTS ========================= */
+
+function doGet(e) {
+  const acao = (e && e.parameter && e.parameter.acao) || 'listar';
+  if (acao === 'listar') return json_(listar_());
+  if (acao === 'setup')  return json_(setup_());
+  return json_({ ok: true, msg: 'API Miashop Transferências Uber ativa.' });
+}
+
+function doPost(e) {
+  let dados = {};
+  try {
+    dados = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return json_({ ok: false, erro: 'JSON inválido: ' + err });
+  }
+
+  try {
+    switch (dados.acao) {
+      case 'salvar':          return json_(salvar_(dados));
+      case 'editar':          return json_(editar_(dados));
+      case 'listar':          return json_(listar_());
+      case 'excluir':         return json_(excluir_(dados.id));
+      case 'atualizarTransf': return json_(atualizarTransf_(dados.id, dados.numTransferencia));
+      case 'renomearFilial':  return json_(renomearFilial_(dados));
+      case 'salvarEcom':      return json_(salvarEcom_(dados));
+      case 'editarEcom':      return json_(editarEcom_(dados));
+      case 'listarEcom':      return json_(listarEcom_());
+      case 'excluirEcom':     return json_(excluirEcom_(dados.id));
+      case 'setup':           return json_(setup_());
+      default:                return json_({ ok: false, erro: 'Ação desconhecida: ' + dados.acao });
     }
-  });
-  return { codigos:cods.join('\n'), produtos:nomes.join('\n'), quantidades:qtds.join('\n'), valores:vals.join('\n'), qtdItens:cods.length };
-}
-
-function atualizarSoma(){
-  let soma = 0, tem = false;
-  document.querySelectorAll('#listaItens .item-card').forEach(l=>{
-    const v = parseFloat(l.querySelector('.i-valor').value);
-    if(!isNaN(v)){
-      const q = parseFloat(l.querySelector('.i-qtd').value);
-      soma += v * (!isNaN(q) && q > 0 ? q : 1); // valor unitário × quantidade
-      tem = true;
-    }
-  });
-  const box = document.getElementById('somaItens');
-  if(tem){
-    box.style.display = 'block';
-    box.innerHTML = 'Soma dos produtos (valor × qtd): <b>' + brl(soma) + '</b> · <button type="button" onclick="usarSoma(' + soma.toFixed(2) + ')">usar como valor da compra</button>';
-  } else box.style.display = 'none';
-}
-function usarSoma(v){ document.getElementById('valorCompra').value = v; }
-
-/* ---------- foto (compressão antes do envio) ---------- */
-let fotoBase64 = '';
-function carregarFoto(input){
-  const arq = input.files && input.files[0];
-  if(!arq) return;
-  const img = new Image();
-  const leitor = new FileReader();
-  leitor.onload = e => { img.src = e.target.result; };
-  img.onload = () => {
-    const MAX = 1100;
-    let w = img.width, h = img.height;
-    if (w > MAX || h > MAX){ const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
-    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
-    cv.getContext('2d').drawImage(img,0,0,w,h);
-    fotoBase64 = cv.toDataURL('image/jpeg', 0.65);
-    document.getElementById('fotoPreview').src = fotoBase64;
-    document.getElementById('fotoPreviewWrap').style.display = 'block';
-  };
-  leitor.readAsDataURL(arq);
-}
-function removerFoto(){
-  fotoBase64='';
-  document.getElementById('inputFoto').value='';
-  document.getElementById('inputGaleria').value='';
-  document.getElementById('fotoPreviewWrap').style.display='none';
-}
-function removerFotoAtual(){
-  fotoRemover = true;
-  document.getElementById('fotoAtualBox').style.display = 'none';
-  toast('A foto atual será removida ao salvar.');
-}
-
-/* ---------- API ---------- */
-async function chamada_(payload){
-  const resp = await fetch(API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload),
-    redirect:'follow',
-    cache:'no-store'
-  });
-  const texto = await resp.text();
-  try{
-    return JSON.parse(texto);
-  }catch(e){
-    // O Apps Script devolveu uma página HTML em vez de JSON
-    if (texto.indexOf('accounts.google.com') !== -1 || texto.indexOf('ServiceLogin') !== -1){
-      throw new Error('ACESSO: a implantação está exigindo login do Google. Em Implantar → Gerenciar implantações → ✎, mude "Quem pode acessar" para "Qualquer pessoa" (não "Qualquer pessoa com Conta do Google").');
-    }
-    if (resp.status === 404 || texto.indexOf('não encontrada') !== -1 || texto.indexOf('not found') !== -1 || texto.indexOf('Página não encontrada') !== -1){
-      throw new Error('URL ANTIGA: essa implantação não existe mais. Você provavelmente criou uma NOVA implantação (que gera URL nova). Abra Implantar → Gerenciar implantações, copie a URL /exec da implantação ATIVA e atualize a constante API_URL no index.html.');
-    }
-    throw new Error('O Apps Script respondeu uma página HTML em vez de dados. Teste: abra a URL /exec numa janela anônima — deve aparecer {"ok":true}. Se aparecer login ou erro, ajuste a implantação para acesso "Qualquer pessoa" ou atualize a API_URL.');
+  } catch (err) {
+    return json_({ ok: false, erro: String(err) });
   }
 }
 
-async function api(payload){
-  try{
-    return await chamada_(payload);
-  }catch(e1){
-    // "Load failed" / falha de rede: espera 1,5s e tenta de novo automaticamente
-    await new Promise(r=>setTimeout(r,1500));
-    try{
-      return await chamada_(payload);
-    }catch(e2){
-      throw new Error('Falha de conexão com o Apps Script ("' + e2.message + '"). ' +
-        'Verifique a internet e se a implantação está como App da Web com acesso "Qualquer pessoa" ' +
-        '(Implantar → Gerenciar implantações). Após alterar o código, é preciso criar uma NOVA versão da implantação.');
-    }
-  }
-}
-
-/* ---------- salvar / atualizar ---------- */
-function novoUuid_(){
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-    const r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8); return v.toString(16);
-  });
-}
-
-async function salvar(){
-  if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
-  const origem = normLoja(document.getElementById('lojaOrigem').value);
-  const destino = normLoja(document.getElementById('lojaDestino').value);
-  if (!origem || !destino) return toast('Informe a loja de origem e a de destino.', true);
-  if (origem.toLowerCase() === destino.toLowerCase()) return toast('A loja de origem e a de destino não podem ser a mesma.', true);
-  const itens = coletarItens();
-  if (!itens.qtdItens) return toast('Informe ao menos um produto transferido.', true);
-  if (!document.getElementById('data').value) return toast('Informe a data.', true);
-
-  const btn = document.getElementById('btnSalvar');
-  btn.disabled = true;
-  btn.textContent = (editandoId ? 'Atualizando' : 'Salvando') + (fotoBase64 ? ' e enviando foto ao Drive...' : '...');
-
-  // Verificação de duplicado: compara com os lançamentos já existentes
-  if (!editandoId){
-    const dup = registros.find(x =>
-      x.data === document.getElementById('data').value &&
-      x.lojaOrigem.trim().toLowerCase() === origem.toLowerCase() &&
-      x.lojaDestino.trim().toLowerCase() === destino.toLowerCase() &&
-      x.codigos === itens.codigos &&
-      x.quantidades === itens.quantidades
-    );
-    if (dup){
-      const seguir = confirm('⚠️ LANÇAMENTO DUPLICADO\n\nJá existe um lançamento com a mesma data, mesmas lojas e mesmos produtos:\n\n' +
-        dataBR(dup.data) + ' · ' + dup.lojaOrigem + ' → ' + dup.lojaDestino + '\n\nDeseja lançar MESMO ASSIM?');
-      if (!seguir){ toast('Lançamento cancelado — já existia um igual.'); return; }
-    }
-  }
-
-  const payload = {
-    acao: editandoId ? 'editar' : 'salvar',
-    id: editandoId || novoUuid_(),   // ID criado aqui: reenvio com o mesmo ID nunca duplica
-    data: document.getElementById('data').value,
-    lojaOrigem: origem, lojaDestino: destino,
-    codigos: itens.codigos, produtos: itens.produtos, quantidades: itens.quantidades, valores: itens.valores,
-    valorCompra: parseFloat(document.getElementById('valorCompra').value) || 0,
-    valorUber: parseFloat(document.getElementById('valorUber').value) || 0,
-    numSequencia: document.getElementById('numSequencia').value.trim(),
-    numTransferencia: document.getElementById('numTransferencia').value.trim(),
-    formaPagamento: '',
-    observacoes: document.getElementById('observacoes').value.trim(),
-    fotoBase64: fotoBase64,
-    fotoRemover: fotoRemover
-  };
-
-  try{
-    const r = await api(payload);
-    if(!r.ok) throw new Error(r.erro || 'Falha ao salvar.');
-    memorizarValores(origem, destino, '');
-    toast(editandoId ? 'Lançamento atualizado ✓' : 'Lançamento salvo com sucesso ✓');
-    cancelarEdicao(true);
-    limparFormulario();
-    trocarAba('lista');
-    carregarRegistros();
-  }catch(e){
-    // Às vezes o salvamento chega na planilha mas a resposta se perde no caminho.
-    // Confere na planilha antes de mostrar erro, para não salvar duplicado.
-    const confirmado = await conferirSeSalvou_(payload);
-    if (confirmado){
-      memorizarValores(origem, destino, '');
-      toast('Lançamento salvo com sucesso ✓');
-      cancelarEdicao(true);
-      limparFormulario();
-      trocarAba('lista');
-      renderLista();
-    } else {
-      toast('Erro: ' + e.message, true);
-    }
-  }
-  finally{ btn.disabled=false; btn.textContent = editandoId ? 'Atualizar lançamento' : 'Salvar lançamento'; }
-}
-
-async function conferirSeSalvou_(payload){
-  try{
-    const r = await chamada_({acao:'listar'});
-    if(!r.ok || !r.registros) return false;
-    registros = r.registros;
-    ordenarRegistros();
-    gravarCacheRegistros_();
-    atualizarSugestoes();
-    // o ID é gerado no aparelho antes do envio, então basta procurá-lo
-    return registros.some(x => String(x.id) === String(payload.id));
-  }catch(e){ return false; }
-}
-
-function limparFormulario(){
-  ['lojaOrigem','lojaDestino','valorCompra','valorUber','numSequencia','numTransferencia','observacoes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('data').value = hojeISO();
-  document.getElementById('listaItens').innerHTML=''; addItem(); atualizarSoma();
-  removerFoto();
-  fotoAtualUrl=''; fotoRemover=false;
-  document.getElementById('fotoAtualBox').style.display='none';
-}
-
-/* ---------- edição ---------- */
-function iniciarEdicao(id){
-  const r = registros.find(x=>x.id===id);
-  if(!r) return;
-  editandoId = id;
-  fotoAtualUrl = r.fotoUrl || '';
-  fotoRemover = false;
-  removerFoto();
-
-  document.getElementById('data').value = r.data;
-  document.getElementById('lojaOrigem').value = r.lojaOrigem;
-  document.getElementById('lojaDestino').value = r.lojaDestino;
-  document.getElementById('numSequencia').value = r.numSequencia;
-  document.getElementById('numTransferencia').value = r.numTransferencia;
-  document.getElementById('valorCompra').value = r.valorCompra || '';
-  document.getElementById('valorUber').value = r.valorUber || '';
-  document.getElementById('observacoes').value = r.observacoes;
-
-  const cods=r.codigos.split('\n'), noms=r.produtos.split('\n'),
-        qtds=r.quantidades.split('\n'), vals=(r.valores||'').split('\n');
-  document.getElementById('listaItens').innerHTML='';
-  noms.forEach((n,i)=> addItem(cods[i], n, qtds[i], vals[i]));
-  if(!noms.length) addItem();
-  atualizarSoma();
-
-  const boxFoto = document.getElementById('fotoAtualBox');
-  if (fotoAtualUrl){
-    document.getElementById('fotoAtualLink').href = fotoAtualUrl;
-    boxFoto.style.display = 'block';
-  } else boxFoto.style.display = 'none';
-
-  document.getElementById('bannerEdicao').style.display = 'flex';
-  document.getElementById('bannerEdicaoInfo').textContent = dataBR(r.data) + ' · ' + r.lojaOrigem + ' → ' + r.lojaDestino;
-  document.getElementById('btnSalvar').textContent = 'Atualizar lançamento';
-  trocarAba('novo');
-  window.scrollTo({top:0});
-}
-
-function cancelarEdicao(silencioso){
-  editandoId = null;
-  document.getElementById('bannerEdicao').style.display = 'none';
-  document.getElementById('btnSalvar').textContent = 'Salvar lançamento';
-  if (silencioso !== true){
-    limparFormulario();
-    toast('Edição cancelada.');
-  }
-}
-
-/* ---------- listar ---------- */
-function ordenarRegistros(){
-  registros.forEach(r=>{ r.lojaOrigem = normLoja(r.lojaOrigem); r.lojaDestino = normLoja(r.lojaDestino); });
-  const chaveReg = s => {
-    // "dd/MM/yyyy HH:mm:ss" -> "yyyyMMddHHmmss" para comparação
-    const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-    return m ? m[3]+m[2]+m[1]+m[4]+m[5]+m[6] : '';
-  };
-  registros.sort((a,b)=>{
-    if (a.data !== b.data) return a.data < b.data ? 1 : -1;      // data mais recente primeiro
-    const ra = chaveReg(a.registradoEm), rb = chaveReg(b.registradoEm);
-    return ra < rb ? 1 : (ra > rb ? -1 : 0);                      // empate: registrado por último primeiro
-  });
-}
-
-function lerCacheRegistros_(){
-  try { return JSON.parse(localStorage.getItem('miashop_registros')) || null; } catch(e){ return null; }
-}
-function gravarCacheRegistros_(){
-  try { localStorage.setItem('miashop_registros', JSON.stringify(registros)); } catch(e){}
-}
-
-async function carregarRegistros(){
-  if (API_URL.indexOf('COLE_AQUI') === 0){
-    document.getElementById('listaRegistros').innerHTML =
-      '<div class="vazio"><b>API não configurada</b>Cole a URL do Apps Script no index.html para carregar os lançamentos.</div>';
-    return;
-  }
-
-  // 1) Mostra NA HORA o que já está salvo neste aparelho (cache local)
-  const cache = lerCacheRegistros_();
-  if (cache && cache.length){
-    registros = cache;
-    ordenarRegistros();
-    atualizarSugestoes();
-    renderLista();
-    toast('Atualizando com a planilha...');
-  } else {
-    document.getElementById('listaRegistros').innerHTML = '<div class="carregando"><span class="spin"></span>Carregando lançamentos...</div>';
-  }
-
-  // 2) Busca na planilha em segundo plano e atualiza a tela
-  try{
-    const r = await api({acao:'listar'});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao listar.');
-    registros = r.registros || [];
-    ordenarRegistros();
-    gravarCacheRegistros_();
-    atualizarSugestoes();
-    renderLista();
-    if (document.getElementById('painelRel').classList.contains('ativo')) renderRelatorio();
-  }catch(e){
-    if (cache && cache.length){
-      toast('⚠️ SEM CONEXÃO com a planilha — esta lista pode estar DESATUALIZADA. Use ☁ Sincronizar.', true);
-    } else {
-      document.getElementById('listaRegistros').innerHTML =
-        '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
-    }
-  }
-}
-
-/* ---------- filtros ---------- */
-function filtrar(){
-  const fo = document.getElementById('fOrigem').value;
-  const fd = document.getElementById('fDestino').value;
-  const de = document.getElementById('fDataDe').value;
-  const ate = document.getElementById('fDataAte').value;
-
-  return registros.filter(r=>{
-    if (de && r.data < de) return false;
-    if (ate && r.data > ate) return false;
-    if (fo && r.lojaOrigem !== fo) return false;
-    if (fd && r.lojaDestino !== fd) return false;
-    return true;
-  });
-}
-
-function limparFiltros(){
-  ['fDataDe','fDataAte','fOrigem','fDestino'].forEach(id=>document.getElementById(id).value='');
-  renderLista();
-}
-
-/* ---------- render (tabela para o PC) ---------- */
-const brl = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const dataBR = iso => { if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso; };
-const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const multi = (s, mono) => String(s||'').split('\n').map(x=> mono ? `<span class="cod-mono">${esc(x)}</span>` : esc(x)).join('<br>');
-
-// total dos produtos transferidos do lançamento (valor unitário × quantidade)
-function totalProdutos(r){
-  const vals = (r.valores||'').split('\n');
-  const qtds = (r.quantidades||'').split('\n');
-  let soma = 0;
-  vals.forEach((v,i)=>{
-    const val = parseFloat(v);
-    if(!isNaN(val)){
-      const q = parseFloat(qtds[i]);
-      soma += val * (!isNaN(q) && q > 0 ? q : 1);
-    }
-  });
-  return soma;
-}
-
-/* ordenação da lista ao apertar no nome da coluna (padrão: data mais recente) */
-const listaSort = { c:null, d:1 };
-function sortLista(c){
-  if (listaSort.c === c) listaSort.d = -listaSort.d; else { listaSort.c = c; listaSort.d = 1; }
-  renderLista();
-}
-function thLista_(c, rotulo){
-  const seta = listaSort.c === c ? (listaSort.d === 1 ? ' ▼' : ' ▲') : '';
-  return `<th class="th-sort${listaSort.c===c?' ativo':''}" onclick="sortLista('${c}')" title="Apertar para ordenar">${rotulo}${seta}</th>`;
-}
-
-function renderLista(){
-  let dados = filtrar();
-  if (listaSort.c){
-    const valor = r => listaSort.c==='data' ? r.data
-      : listaSort.c==='prod' ? totalProdutos(r)
-      : listaSort.c==='uber' ? r.valorUber
-      : totalProdutos(r) + r.valorUber;
-    dados = [...dados].sort((a,b)=>{
-      const va = valor(a), vb = valor(b);
-      if (typeof va === 'string') return (va < vb ? 1 : va > vb ? -1 : 0) * listaSort.d;
-      return (vb - va) * listaSort.d;
-    });
-  }
-  let tCompra=0, tUber=0;
-  dados.forEach(r=>{ tCompra+=totalProdutos(r); tUber+=r.valorUber; });
-  document.getElementById('totCompra').textContent = brl(tCompra);
-  document.getElementById('totUber').textContent = brl(tUber);
-  document.getElementById('totGeral').textContent = brl(tCompra+tUber);
-
-  const alvo = document.getElementById('listaRegistros');
-  if(!dados.length){
-    alvo.innerHTML = '<div class="vazio"><b>Nenhum lançamento encontrado</b>Ajuste os filtros ou registre uma nova transferência.</div>';
-    return;
-  }
-
-  const linhas = dados.map(r=>{
-    const cods=r.codigos.split('\n'), noms=r.produtos.split('\n'),
-          qtds=r.quantidades.split('\n'), vals=(r.valores||'').split('\n');
-    const prods = noms.map((n,i)=>{
-      const v = vals[i] && vals[i] !== '-' ? ' — ' + brl(parseFloat(vals[i])) : '';
-      const q = qtds[i] && qtds[i] !== '-' ? ' ×' + esc(qtds[i]) : '';
-      return `<span class="prod-linha"><span class="cod-mono">${esc(cods[i]||'-')}</span> ${esc(n)}<span class="qv">${q}${v}</span></span>`;
-    }).join('');
-    const transf = r.numTransferencia
-      ? `<button class="chip-transf" title="Editar nº" onclick="informarTransf('${r.id}','${esc(r.numTransferencia)}')">T: ${esc(r.numTransferencia)} ✎</button>`
-      : `<button class="chip-pendente" onclick="informarTransf('${r.id}','')">+ transf.</button>`;
-    return `
-    <tr>
-      <td class="nowrap">${dataBR(r.data)}</td>
-      <td class="rota-cel">${esc(r.lojaOrigem)} <span class="seta">→</span> ${esc(r.lojaDestino)}</td>
-      <td>${prods}</td>
-      <td class="num" style="color:var(--azul)">${brl(totalProdutos(r))}</td>
-      <td class="num" style="color:var(--verde)">${brl(r.valorUber)}</td>
-      <td class="num"><b>${brl(totalProdutos(r) + r.valorUber)}</b></td>
-      <td><div class="st-col">${r.numSequencia ? `<span class="chip">S: ${esc(r.numSequencia)}</span>` : ''}${transf}</div></td>
-      <td class="obs-cel" title="${esc(r.observacoes)}">${esc(r.observacoes) || '—'}</td>
-      <td class="nowrap">
-        ${r.fotoUrl ? `<button class="acao-btn ft" title="Ver foto" onclick="verFoto('${esc(r.fotoUrl)}')">📷</button>` : ''}
-        <button class="acao-btn ed" title="Editar" onclick="iniciarEdicao('${r.id}')">✎</button>
-        <button class="acao-btn ex" title="Apagar" onclick="excluir('${r.id}')">🗑</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  alvo.innerHTML = `
-  <div class="tabela-wrap">
-    <table>
-      <thead><tr>
-        ${thLista_('data','Data')}<th>Rota (origem → destino)</th><th>Produtos (código · nome · qtd · valor)</th>
-        ${thLista_('prod','Total produtos')}${thLista_('uber','Uber')}${thLista_('total','Total')}
-        <th>Seq. / Transf.</th><th>Obs.</th><th>Ações</th>
-      </tr></thead>
-      <tbody>${linhas}</tbody>
-      <tfoot><tr>
-        <td colspan="3" style="text-align:right">TOTAIS (${dados.length} lançamento${dados.length>1?'s':''})</td>
-        <td class="num">${brl(tCompra)}</td>
-        <td class="num">${brl(tUber)}</td>
-        <td class="num">${brl(tCompra+tUber)}</td>
-        <td colspan="3"></td>
-      </tr></tfoot>
-    </table>
-  </div>`;
-}
-
-/* ---------- sincronização forçada ---------- */
-async function sincronizar(){
-  if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
-  const btn = document.getElementById('btnSync');
-  btn.disabled = true; const rotulo = btn.textContent;
-  btn.textContent = '☁ Sincronizando...';
-  try{
-    // 1) Baixa a lista completa da planilha (a nuvem)
-    const r = await chamada_({acao:'listar'});
-    if(!r.ok || !r.registros) throw new Error(r.erro || 'Falha ao ler a planilha.');
-    const daNuvem = r.registros;
-    const idsNuvem = new Set(daNuvem.map(x=>String(x.id)));
-
-    // 2) O que está salvo neste computador mas NÃO está na planilha → reenvia
-    const locais = lerCacheRegistros_() || [];
-    const pendentes = locais.filter(x => x.id && !idsNuvem.has(String(x.id)));
-    let enviados = 0, falhas = 0;
-    for (const p of pendentes){
-      btn.textContent = '☁ Enviando ' + (enviados+falhas+1) + '/' + pendentes.length + '...';
-      try{
-        const rs = await chamada_({
-          acao:'salvar', id:p.id, data:p.data,
-          lojaOrigem:p.lojaOrigem, lojaDestino:p.lojaDestino,
-          codigos:p.codigos, produtos:p.produtos, quantidades:p.quantidades, valores:p.valores,
-          valorCompra:p.valorCompra, valorUber:p.valorUber,
-          numSequencia:p.numSequencia, numTransferencia:p.numTransferencia,
-          formaPagamento:p.formaPagamento, observacoes:p.observacoes,
-          fotoUrl:p.fotoUrl || ''
-        });
-        if (rs.ok){ enviados++; daNuvem.push(p); idsNuvem.add(String(p.id)); }
-        else falhas++;
-      }catch(e){ falhas++; }
-    }
-
-    // 3) A planilha vira a referência única: todos os PCs passam a ver o mesmo
-    registros = daNuvem;
-    ordenarRegistros();
-    gravarCacheRegistros_();
-    atualizarSugestoes();
-    renderLista();
-
-    let msg = 'Sincronizado ✓ ' + registros.length + ' lançamentos na nuvem';
-    if (enviados) msg += ' · ' + enviados + ' enviado(s) deste computador';
-    if (falhas) msg += ' · ' + falhas + ' falharam (tente de novo)';
-    toast(msg, falhas > 0);
-  }catch(e){
-    toast('Não foi possível sincronizar: ' + e.message, true);
-  }finally{
-    btn.disabled = false; btn.textContent = rotulo;
-  }
-}
-
-/* ---------- nº transf. estoque (informado depois, pela lista) ---------- */
-async function informarTransf(id, atual){
-  const numero = prompt('Nº da transferência de estoque no sistema:', atual || '');
-  if (numero === null) return; // cancelou
-  try{
-    const r = await api({acao:'atualizarTransf', id:id, numTransferencia: numero.trim()});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao atualizar.');
-    const reg = registros.find(x=>x.id===id);
-    if (reg) reg.numTransferencia = numero.trim();
-    toast(numero.trim() ? 'Nº de transferência salvo ✓' : 'Nº de transferência removido.');
-    renderLista();
-  }catch(e){ toast('Erro: '+e.message, true); }
-}
-
-/* ---------- excluir ---------- */
-async function excluir(id){
-  if(!confirm('Apagar este lançamento definitivamente da planilha?')) return;
-  try{
-    const r = await api({acao:'excluir', id:id});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao excluir.');
-    toast('Lançamento apagado.');
-    registros = registros.filter(x=>x.id!==id);
-    gravarCacheRegistros_();
-    atualizarSugestoes();
-    renderLista();
-  }catch(e){ toast('Erro: '+e.message, true); }
-}
-
-/* ---------- exportação ---------- */
-function linhasRelatorio(){
-  const dados = filtrar();
-  let tCompra=0,tUber=0;
-  const linhas = dados.map(r=>{
-    const tp = totalProdutos(r);
-    tCompra+=tp; tUber+=r.valorUber;
-    return [ dataBR(r.data), r.lojaOrigem, r.lojaDestino,
-      r.codigos.replace(/\n/g,' | '), r.produtos.replace(/\n/g,' | '),
-      r.quantidades.replace(/\n/g,' | '), (r.valores||'').replace(/\n/g,' | '),
-      tp, r.valorUber, tp + r.valorUber,
-      r.numSequencia, r.numTransferencia, r.observacoes, r.fotoUrl ];
-  });
-  linhas.push(['','','','','','','TOTAIS', tCompra, tUber, tCompra+tUber, '', '', '', '']);
-  return { cab:['Data','Loja Origem','Loja Destino','Códigos','Produtos','Quantidades','Valores Produtos (R$)','Total Produtos (R$)','Valor Uber (R$)','Total Linha (R$)','Sequência Venda','Nº Transf. Estoque','Observações','Foto'], linhas, tCompra, tUber };
-}
-
-function exportarExcel(){
-  const {cab, linhas} = linhasRelatorio();
-  const ws = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
-  ws['!cols'] = cab.map((_,i)=>({wch:[11,14,14,16,28,12,18,15,14,14,14,15,16,26,30][i]||14}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Transferências Uber');
-  XLSX.writeFile(wb, 'Miashop_Transferencias_Uber_' + hojeISO() + '.xlsx');
-}
-
-function exportarPDF(){
-  const {cab, linhas, tCompra, tUber} = linhasRelatorio();
-  const doc = new jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
-  doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.setTextColor(245,134,52);
-  doc.text('Miashop', 14, 14);
-  doc.setTextColor(36,26,18);
-  doc.text('— Transferências de Produtos via Uber', 34, 14);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') +
-           '   |   Total produtos: ' + brl(tCompra) + '   |   Total Uber: ' + brl(tUber) +
-           '   |   Total geral: ' + brl(tCompra+tUber), 14, 20);
-  const corpo = linhas.map(l => l.map((c,i)=> (i>=7 && i<=9 && c!=='') ? brl(c) : String(c||'')));
-  doc.autoTable({
-    head:[cab.slice(0,13)], body:corpo.map(l=>l.slice(0,13)), startY:24,
-    styles:{fontSize:6.3, cellPadding:1.3},
-    headStyles:{fillColor:[245,134,52], textColor:255, fontSize:6.5},
-    didParseCell: d => { if (d.row.index === corpo.length-1) d.cell.styles.fontStyle='bold'; }
-  });
-  doc.save('Miashop_Transferencias_Uber_' + hojeISO() + '.pdf');
-}
-
-/* ---------- visualizador de foto ampliada ---------- */
-let fotoAberta = '';
-function verFoto(url){
-  fotoAberta = url;
-  // usa o endpoint de miniatura do Drive em alta resolução (carrega direto na página)
-  const m = url.match(/id=([A-Za-z0-9_-]+)/);
-  const src = m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600' : url;
-  const img = document.getElementById('lightboxImg');
-  img.style.display = 'block';
-  document.getElementById('lbErro').style.display = 'none';
-  img.src = src;
-  document.getElementById('lightbox').classList.add('aberta');
-  document.body.style.overflow = 'hidden';
-}
-function fecharFoto(ev){
-  if (ev && ev.target !== document.getElementById('lightbox')) return;
-  document.getElementById('lightbox').classList.remove('aberta');
-  document.getElementById('lightboxImg').src = '';
-  document.body.style.overflow = '';
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharFoto(); });
-
-/* ---------- RELATÓRIOS ---------- */
-function filtrarRel(){
-  const de = document.getElementById('rDataDe').value;
-  const ate = document.getElementById('rDataAte').value;
-  const fil = document.getElementById('rFilial').value;
-  return registros.filter(r=>{
-    if (de && r.data < de) return false;
-    if (ate && r.data > ate) return false;
-    if (fil && r.lojaOrigem !== fil && r.lojaDestino !== fil) return false;
-    return true;
-  });
-}
-
-function limparFiltrosRel(){
-  ['rDataDe','rDataAte','rFilial'].forEach(id=>document.getElementById(id).value='');
-  renderRelatorio();
-}
-
-// Agrupa por filial: uber e produtos, enviados e recebidos
-function agruparPorFilial(dados){
-  const mapa = {};
-  const pega = f => mapa[f] || (mapa[f] = {qtdEnv:0, valEnv:0, prodEnv:0, qtdRec:0, valRec:0, prodRec:0});
-  dados.forEach(r=>{
-    const vp = totalProdutos(r);
-    if (r.lojaOrigem){ const m = pega(r.lojaOrigem); m.qtdEnv++; m.valEnv += r.valorUber; m.prodEnv += vp; }
-    if (r.lojaDestino){ const m = pega(r.lojaDestino); m.qtdRec++; m.valRec += r.valorUber; m.prodRec += vp; }
-  });
-  return mapa;
-}
-
-/* ---- ordenação ao apertar no nome da coluna (padrão: Valor Uber, do maior para o menor) ---- */
-const relSort = { orig:{c:2,d:1}, dest:{c:2,d:1}, comp:{c:-1,d:1} };
-function sortRel(tab, col){
-  const s = relSort[tab];
-  if (s.c === col) s.d = -s.d; else { s.c = col; s.d = 1; }
-  renderRelatorio();
-}
-function thSort_(tab, col, rotulo, alinhar){
-  const s = relSort[tab];
-  const seta = s.c === col ? (s.d === 1 ? ' ▼' : ' ▲') : '';
-  return `<th class="th-sort${s.c===col?' ativo':''}"${alinhar?' style="text-align:right"':''} onclick="sortRel('${tab}',${col})" title="Apertar para ordenar">${rotulo}${seta}</th>`;
-}
-function ordenar_(linhas, s){
-  return [...linhas].sort((a,b)=>{
-    const va = a[s.c], vb = b[s.c];
-    if (typeof va === 'string') return (va < vb ? -1 : va > vb ? 1 : 0) * s.d;   // nome: A→Z
-    return (vb - va) * s.d;                                                       // número: maior primeiro
-  });
-}
-
-function tabelaRel_(tab, linhas, cor, rotuloQtd){
-  // linhas: [[filial, qtd, valorUber, valorProdutos], ...]
-  if (!linhas.length) return '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
-  linhas = ordenar_(linhas, relSort[tab]);
-  const maxVal = Math.max(...linhas.map(l=>l[2]), 1);
-  let tq=0, tv=0, tp=0;
-  const corpo = linhas.map(l=>{
-    tq+=l[1]; tv+=l[2]; tp+=l[3];
-    const larg = Math.max(3, Math.round(l[2]/maxVal*100));
-    return `<tr><td>${esc(l[0])}<span class="barra ${cor}" style="width:${larg}%"></span></td>
-      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
-      <td class="num" style="color:var(--verde)">${brl(l[3])}</td>
-      <td class="num">${brl(l[1] ? l[2]/l[1] : 0)}</td></tr>`;
-  }).join('');
-  return `<table class="rel-tab"><thead><tr>
-      ${thSort_(tab,0,'Filial')}${thSort_(tab,1,rotuloQtd,1)}${thSort_(tab,2,'Valor Uber',1)}${thSort_(tab,3,'Valor produtos',1)}${thSort_(tab,4,'Média/Uber',1)}
-    </tr></thead>
-    <tbody>${corpo}</tbody>
-    <tfoot><tr><td>TOTAL</td><td class="num">${tq}</td><td class="num">${brl(tv)}</td><td class="num">${brl(tp)}</td><td class="num">${brl(tq ? tv/tq : 0)}</td></tr></tfoot></table>`;
-}
-
-function renderRelatorio(){
-  const dados = filtrarRel();
-  const qtd = dados.length;
-  const vUber = dados.reduce((s,r)=>s+r.valorUber, 0);
-  const vProd = dados.reduce((s,r)=>s+totalProdutos(r), 0);
-  document.getElementById('rTotQtd').textContent = qtd;
-  document.getElementById('rTotUber').textContent = brl(vUber);
-  document.getElementById('rTotProd').textContent = brl(vProd);
-  document.getElementById('rTotMedia').textContent = brl(qtd ? vUber/qtd : 0);
-
-  const mapa = agruparPorFilial(dados);
-  const filiais = Object.keys(mapa);
-
-  const linhasOrig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv, mapa[f].prodEnv]);
-  const linhasDest = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec, mapa[f].prodRec]);
-
-  document.getElementById('relOrigem').innerHTML = tabelaRel_('orig', linhasOrig, '', 'Ubers enviados');
-  document.getElementById('relDestino').innerHTML = tabelaRel_('dest', linhasDest, 'azul', 'Ubers recebidos');
-
-  // Comparativo enviou × recebeu
-  // colunas: 0 filial · 1 ubers env · 2 valor uber env · 3 produtos env · 4 ubers rec · 5 valor uber rec · 6 produtos rec · 7 diferença uber
-  let comp = filiais.map(f=>{
-    const m = mapa[f];
-    return [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdRec, m.valRec, m.prodRec, m.valEnv - m.valRec];
-  });
-  const sc = relSort.comp;
-  comp = sc.c === -1
-    ? comp.sort((a,b)=> ((b[2]+b[5]) - (a[2]+a[5])) * sc.d)
-    : ordenar_(comp, sc);
-
-  if (!comp.length){
-    document.getElementById('relComparativo').innerHTML = '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
-    return;
-  }
-  let tqE=0,tvE=0,tpE=0,tqR=0,tvR=0,tpR=0;
-  const corpoC = comp.map(l=>{
-    tqE+=l[1]; tvE+=l[2]; tpE+=l[3]; tqR+=l[4]; tvR+=l[5]; tpR+=l[6];
-    return `<tr><td><b>${esc(l[0])}</b></td>
-      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td><td class="num" style="color:var(--verde)">${brl(l[3])}</td>
-      <td class="num">${l[4]}</td><td class="num">${brl(l[5])}</td><td class="num" style="color:var(--verde)">${brl(l[6])}</td>
-      <td class="num" style="color:${l[7]>0?'var(--laranja-esc)':l[7]<0?'var(--azul)':'var(--cinza)'}">${l[7]>0?'enviou +':l[7]<0?'recebeu +':''}${brl(Math.abs(l[7]))}</td></tr>`;
-  }).join('');
-  document.getElementById('relComparativo').innerHTML =
-    `<table class="rel-tab"><thead><tr>
-      ${thSort_('comp',0,'Filial')}
-      ${thSort_('comp',1,'Ubers enviados',1)}${thSort_('comp',2,'Valor Uber env.',1)}${thSort_('comp',3,'Produtos env.',1)}
-      ${thSort_('comp',4,'Ubers recebidos',1)}${thSort_('comp',5,'Valor Uber rec.',1)}${thSort_('comp',6,'Produtos rec.',1)}
-      ${thSort_('comp',7,'Diferença Uber',1)}
-    </tr></thead>
-      <tbody>${corpoC}</tbody>
-      <tfoot><tr><td>TOTAL</td><td class="num">${tqE}</td><td class="num">${brl(tvE)}</td><td class="num">${brl(tpE)}</td><td class="num">${tqR}</td><td class="num">${brl(tvR)}</td><td class="num">${brl(tpR)}</td><td></td></tr></tfoot></table>`;
-}
-
-function dadosRelExport_(){
-  const dados = filtrarRel();
-  const mapa = agruparPorFilial(dados);
-  const filiais = Object.keys(mapa);
-  const mk = (f, m, env) => env
-    ? [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdEnv ? m.valEnv/m.qtdEnv : 0]
-    : [f, m.qtdRec, m.valRec, m.prodRec, m.qtdRec ? m.valRec/m.qtdRec : 0];
-  const orig  = ordenar_(filiais.filter(f=>mapa[f].qtdEnv).map(f=>mk(f, mapa[f], true)),  relSort.orig);
-  const destl = ordenar_(filiais.filter(f=>mapa[f].qtdRec).map(f=>mk(f, mapa[f], false)), relSort.dest);
-  let comp = filiais.map(f=>{const m=mapa[f]; return [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdRec, m.valRec, m.prodRec, m.valEnv-m.valRec];});
-  comp = relSort.comp.c === -1 ? comp.sort((a,b)=>((b[2]+b[5])-(a[2]+a[5]))*relSort.comp.d) : ordenar_(comp, relSort.comp);
-  const periodo = (document.getElementById('rDataDe').value ? dataBR(document.getElementById('rDataDe').value) : 'início') +
-                  ' até ' + (document.getElementById('rDataAte').value ? dataBR(document.getElementById('rDataAte').value) : 'hoje');
-  const filtroTxt = 'Período: ' + periodo +
-    (document.getElementById('rFilial').value ? ' | Filial: ' + document.getElementById('rFilial').value : '');
-  return { dados, orig, destl, comp, filtroTxt };
-}
-
-function exportarRelExcel(){
-  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
-  const wb = XLSX.utils.book_new();
-  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
-
-  const aoaO = [['RELATÓRIO DE UBER POR FILIAL DE ORIGEM (quem enviou)'],[filtroTxt],[],
-    ['Filial','Ubers enviados','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
-    ...orig, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
-  const aoaD = [['RELATÓRIO DE UBER POR FILIAL DE DESTINO (quem recebeu)'],[filtroTxt],[],
-    ['Filial','Ubers recebidos','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
-    ...destl, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
-  const aoaC = [['COMPARATIVO POR FILIAL — ENVIOU × RECEBEU'],[filtroTxt],[],
-    ['Filial','Ubers enviados','Valor Uber enviado (R$)','Produtos enviados (R$)','Ubers recebidos','Valor Uber recebido (R$)','Produtos recebidos (R$)','Diferença Uber (R$)'],
-    ...comp];
-
-  const wsO = XLSX.utils.aoa_to_sheet(aoaO); wsO['!cols']=[{wch:22},{wch:15},{wch:16},{wch:18},{wch:18}];
-  const wsD = XLSX.utils.aoa_to_sheet(aoaD); wsD['!cols']=[{wch:22},{wch:16},{wch:16},{wch:18},{wch:18}];
-  const wsC = XLSX.utils.aoa_to_sheet(aoaC); wsC['!cols']=[{wch:22},{wch:14},{wch:19},{wch:19},{wch:15},{wch:20},{wch:19},{wch:17}];
-  XLSX.utils.book_append_sheet(wb, wsO, 'Por Origem');
-  XLSX.utils.book_append_sheet(wb, wsD, 'Por Destino');
-  XLSX.utils.book_append_sheet(wb, wsC, 'Comparativo');
-  XLSX.writeFile(wb, 'Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.xlsx');
-}
-
-function exportarRelPDF(){
-  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
-  const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
-  const doc = new jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
-  doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.setTextColor(245,134,52); doc.text('Miashop', 14, 14);
-  doc.setTextColor(36,26,18); doc.text('— Relatório de Uber por Filial', 34, 14);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.text(filtroTxt + '  |  Gerado em ' + new Date().toLocaleString('pt-BR'), 14, 20);
-  doc.text('Total: ' + somaQ + ' Uber(s) · Uber ' + brl(somaV) + ' · produtos ' + brl(somaP) + ' · média ' + brl(somaQ?somaV/somaQ:0) + '/Uber', 14, 25);
-
-  const fmt = l => [l[0], String(l[1]), brl(l[2]), brl(l[3]), brl(l[4])];
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de ORIGEM (quem enviou)', 14, 33);
-  doc.autoTable({ head:[['Filial','Ubers enviados','Valor Uber','Valor produtos','Média/Uber']],
-    body: orig.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
-    startY:35, styles:{fontSize:8.5}, headStyles:{fillColor:[245,134,52]}, footStyles:{fillColor:[36,26,18]} });
-
-  let y = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de DESTINO (quem recebeu)', 14, y);
-  doc.autoTable({ head:[['Filial','Ubers recebidos','Valor Uber','Valor produtos','Média/Uber']],
-    body: destl.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
-    startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[21,73,107]}, footStyles:{fillColor:[36,26,18]} });
-
-  y = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Comparativo — enviou × recebeu', 14, y);
-  doc.autoTable({ head:[['Filial','Ubers env.','Uber env.','Produtos env.','Ubers rec.','Uber rec.','Produtos rec.','Diferença Uber']],
-    body: comp.map(l=>[l[0], String(l[1]), brl(l[2]), brl(l[3]), String(l[4]), brl(l[5]), brl(l[6]), (l[7]>0?'enviou +':l[7]<0?'recebeu +':'') + brl(Math.abs(l[7]))]),
-    startY:y+2, styles:{fontSize:8}, headStyles:{fillColor:[36,26,18]} });
-
-  doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
-}
-
-/* ---------- FINANCEIRO E-COMMERCE ---------- */
-let registrosEcom = [];
-let editandoEcomId = null;
-let ecomCarregado = false;
-
-function lerCacheEcom_(){ try { return JSON.parse(localStorage.getItem('miashop_ecom')) || null; } catch(e){ return null; } }
-function gravarCacheEcom_(){ try { localStorage.setItem('miashop_ecom', JSON.stringify(registrosEcom)); } catch(e){} }
-
-function ordenarEcom_(){
-  registrosEcom.forEach(r=>{ r.loja = normLoja(r.loja); });
-  registrosEcom.sort((a,b)=> a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
-}
-
-async function carregarEcom(forcar){
-  if (API_URL.indexOf('COLE_AQUI') === 0) return;
-  const cache = lerCacheEcom_();
-  if (cache && cache.length){
-    registrosEcom = cache; ordenarEcom_(); renderEcom();
-  }
-  if (ecomCarregado && !forcar) return; // já atualizado nesta sessão
-  try{
-    const r = await api({acao:'listarEcom'});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao listar.');
-    registrosEcom = r.registros || [];
-    ordenarEcom_(); gravarCacheEcom_(); renderEcom();
-    ecomCarregado = true;
-  }catch(e){
-    if (!(cache && cache.length)){
-      document.getElementById('listaEcom').innerHTML =
-        '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
-    } else toast('⚠️ Sem conexão — lista de vendas pode estar desatualizada.', true);
-  }
-}
-
-function filtrarEcom_(){
-  const de = document.getElementById('efDataDe').value;
-  const ate = document.getElementById('efDataAte').value;
-  const lj = document.getElementById('efLoja').value;
-  const pg = document.getElementById('efPagamento').value;
-  const cf = document.getElementById('efConfirmacao').value;
-  return registrosEcom.filter(r=>{
-    if (de && r.data < de) return false;
-    if (ate && r.data > ate) return false;
-    if (lj && r.loja !== lj) return false;
-    if (pg && r.pagamento !== pg) return false;
-    if (cf && r.confirmacao !== cf) return false;
-    return true;
-  });
-}
-function limparFiltrosEcom(){
-  ['efDataDe','efDataAte','efLoja','efPagamento','efConfirmacao'].forEach(id=>document.getElementById(id).value='');
-  renderEcom();
-}
-
-function renderEcom(){
-  // filtro de loja com as lojas das vendas
-  const lojas = [...new Set(registrosEcom.map(r=>r.loja).filter(Boolean))].sort();
-  preencherSelect('efLoja', lojas, 'Loja: todas');
-
-  const dados = filtrarEcom_();
-  let tF=0, tC=0;
-  dados.forEach(r=>{ tF+=r.precoFinal; tC+=r.precoCusto; });
-  document.getElementById('eTotFinal').textContent = brl(tF);
-  document.getElementById('eTotCusto').textContent = brl(tC);
-  document.getElementById('eTotLucro').textContent = brl(tF - tC);
-
-  const alvo = document.getElementById('listaEcom');
-  if (!dados.length){
-    alvo.innerHTML = '<div class="vazio"><b>Nenhuma venda encontrada</b>Registre uma venda acima ou ajuste os filtros.</div>';
-    return;
-  }
-  const linhas = dados.map(r=>`
-    <tr>
-      <td class="nowrap">${dataBR(r.data)}</td>
-      <td>${esc(r.loja)}</td>
-      <td>${esc(r.pagamento) || '—'}</td>
-      <td class="num" style="color:var(--azul)">${brl(r.precoFinal)}</td>
-      <td class="num">${brl(r.precoCusto)}</td>
-      <td><button class="chip-conf ${r.confirmacao==='CONFIRMADO'?'ok':'pend'}" title="Apertar para alternar"
-        onclick="alternarConfirmacao('${r.id}')">${r.confirmacao==='CONFIRMADO'?'✓ CONFIRMADO':'⏳ PENDENTE'}</button></td>
-      <td>${esc(r.sequencia) || '—'}</td>
-      <td>${esc(r.ocUber) || '—'}</td>
-      <td>${esc(r.cliente) || '—'}</td>
-      <td>${esc(r.atendimento) || '—'}</td>
-      <td>${esc(r.idPedido) || '—'}</td>
-      <td class="nowrap">
-        <button class="acao-btn ed" title="Editar" onclick="iniciarEdicaoEcom('${r.id}')">✎</button>
-        <button class="acao-btn ex" title="Apagar" onclick="excluirEcom('${r.id}')">🗑</button>
-      </td>
-    </tr>`).join('');
-  alvo.innerHTML = `
-  <div class="tabela-wrap">
-    <table>
-      <thead><tr>
-        <th>Data</th><th>Loja saída</th><th>Pagamento</th><th>Preço final</th><th>Custo</th><th>Confirmação</th>
-        <th>Seq. venda</th><th>O.C Uber</th><th>Cliente</th><th>Atendimento</th><th>ID pedido</th><th>Ações</th>
-      </tr></thead>
-      <tbody>${linhas}</tbody>
-      <tfoot><tr>
-        <td colspan="3" style="text-align:right">TOTAIS (${dados.length} venda${dados.length>1?'s':''})</td>
-        <td class="num">${brl(tF)}</td>
-        <td class="num">${brl(tC)}</td>
-        <td colspan="7"></td>
-      </tr></tfoot>
-    </table>
-  </div>`;
-}
-
-function payloadEcom_(){
+/* ========================= AÇÕES ========================= */
+
+function setup_() {
+  const aba = getAba_();
+  const pasta = getPastaFotos_();
   return {
-    data: document.getElementById('eData').value,
-    loja: normLoja(document.getElementById('eLoja').value),
-    pagamento: document.getElementById('ePagamento').value,
-    precoFinal: parseFloat(document.getElementById('ePrecoFinal').value) || 0,
-    precoCusto: parseFloat(document.getElementById('ePrecoCusto').value) || 0,
-    confirmacao: document.getElementById('eConfirmacao').value,
-    sequencia: document.getElementById('eSequencia').value.trim(),
-    ocUber: document.getElementById('eOcUber').value,
-    cliente: document.getElementById('eCliente').value.trim(),
-    atendimento: document.getElementById('eAtendimento').value.trim(),
-    idPedido: document.getElementById('eIdPedido').value.trim()
+    ok: true,
+    planilhaUrl: aba.getParent().getUrl(),
+    pastaFotosUrl: pasta.getUrl()
   };
 }
 
-async function salvarEcom(){
-  if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
-  const p = payloadEcom_();
-  if (!p.data) return toast('Informe a data.', true);
-  if (!p.loja) return toast('Informe a loja de saída.', true);
-  const btn = document.getElementById('btnSalvarEcom');
-  btn.disabled = true; btn.textContent = editandoEcomId ? 'Atualizando...' : 'Salvando...';
-  p.acao = editandoEcomId ? 'editarEcom' : 'salvarEcom';
-  p.id = editandoEcomId || novoUuid_();
-  try{
-    const r = await api(p);
-    if(!r.ok) throw new Error(r.erro || 'Falha ao salvar.');
-    if (editandoEcomId){
-      const i = registrosEcom.findIndex(x=>x.id===editandoEcomId);
-      if (i !== -1) registrosEcom[i] = Object.assign({}, registrosEcom[i], p);
-    } else {
-      registrosEcom.unshift(Object.assign({registradoEm:''}, p));
-    }
-    memorizarValores(p.loja, '', '');
-    ordenarEcom_(); gravarCacheEcom_(); renderEcom();
-    toast(editandoEcomId ? 'Venda atualizada ✓' : 'Venda salva com sucesso ✓');
-    cancelarEdicaoEcom(true);
-    limparFormularioEcom_();
-  }catch(e){ toast('Erro: ' + e.message, true); }
-  finally{ btn.disabled = false; btn.textContent = editandoEcomId ? 'Atualizar venda' : 'Salvar venda'; }
+function salvarFoto_(fotoBase64, origem, destino) {
+  const pasta = getPastaFotos_();
+  const partes = fotoBase64.split(',');
+  const contentType = (partes[0].match(/data:(.*?);/) || [null, 'image/jpeg'])[1];
+  const bytes = Utilities.base64Decode(partes[1] || partes[0]);
+  const nomeArq = 'transf_' + Utilities.formatDate(new Date(), 'GMT-3', 'yyyyMMdd_HHmmss') +
+                  '_' + (origem || '') + '-para-' + (destino || '') + '.jpg';
+  const arquivo = pasta.createFile(Utilities.newBlob(bytes, contentType, nomeArq));
+  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://drive.google.com/uc?export=view&id=' + arquivo.getId();
 }
 
-function limparFormularioEcom_(){
-  ['eLoja','ePrecoFinal','ePrecoCusto','eSequencia','eCliente','eAtendimento','eIdPedido'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('eData').value = hojeISO();
-  document.getElementById('ePagamento').selectedIndex = 0;
-  document.getElementById('eConfirmacao').selectedIndex = 0;
-  document.getElementById('eOcUber').selectedIndex = 0;
-}
-
-function iniciarEdicaoEcom(id){
-  const r = registrosEcom.find(x=>x.id===id);
-  if(!r) return;
-  editandoEcomId = id;
-  document.getElementById('eData').value = r.data;
-  document.getElementById('eLoja').value = r.loja;
-  document.getElementById('ePagamento').value = r.pagamento || 'PAGALI';
-  document.getElementById('ePrecoFinal').value = r.precoFinal || '';
-  document.getElementById('ePrecoCusto').value = r.precoCusto || '';
-  document.getElementById('eConfirmacao').value = r.confirmacao || 'PENDENTE';
-  document.getElementById('eSequencia').value = r.sequencia;
-  document.getElementById('eOcUber').value = r.ocUber || '';
-  document.getElementById('eCliente').value = r.cliente;
-  document.getElementById('eAtendimento').value = r.atendimento;
-  document.getElementById('eIdPedido').value = r.idPedido;
-  document.getElementById('bannerEcom').style.display = 'flex';
-  document.getElementById('bannerEcomInfo').textContent = dataBR(r.data) + ' · ' + r.loja + (r.cliente ? ' · ' + r.cliente : '');
-  document.getElementById('btnSalvarEcom').textContent = 'Atualizar venda';
-  window.scrollTo({top:0});
-}
-
-function cancelarEdicaoEcom(silencioso){
-  editandoEcomId = null;
-  document.getElementById('bannerEcom').style.display = 'none';
-  document.getElementById('btnSalvarEcom').textContent = 'Salvar venda';
-  if (silencioso !== true){ limparFormularioEcom_(); toast('Edição cancelada.'); }
-}
-
-async function alternarConfirmacao(id){
-  const r = registrosEcom.find(x=>x.id===id);
-  if(!r) return;
-  const novo = r.confirmacao === 'CONFIRMADO' ? 'PENDENTE' : 'CONFIRMADO';
-  try{
-    const resp = await api({acao:'editarEcom', id:id, data:r.data, loja:r.loja, pagamento:r.pagamento,
-      precoFinal:r.precoFinal, precoCusto:r.precoCusto, confirmacao:novo, sequencia:r.sequencia,
-      ocUber:r.ocUber, cliente:r.cliente, atendimento:r.atendimento, idPedido:r.idPedido});
-    if(!resp.ok) throw new Error(resp.erro || 'Falha ao atualizar.');
-    r.confirmacao = novo;
-    gravarCacheEcom_(); renderEcom();
-    toast('Pagamento marcado como ' + novo + ' ✓');
-  }catch(e){ toast('Erro: ' + e.message, true); }
-}
-
-async function excluirEcom(id){
-  if(!confirm('Apagar esta venda definitivamente da planilha?')) return;
-  try{
-    const r = await api({acao:'excluirEcom', id:id});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao excluir.');
-    registrosEcom = registrosEcom.filter(x=>x.id!==id);
-    gravarCacheEcom_(); renderEcom();
-    toast('Venda apagada.');
-  }catch(e){ toast('Erro: ' + e.message, true); }
-}
-
-/* ---------- autocomplete de filiais no formulário ---------- */
-let acOpcoes = [];
-function ligarAutocompleteLoja(idInput){
-  const inp = document.getElementById(idInput);
-  const box = document.getElementById('ac_' + idInput);
-  const render = ()=>{
-    const txt = normLoja(inp.value);
-    const todas = Object.keys(mapaFiliais_()).sort();
-    const combinam = txt ? todas.filter(f => f.indexOf(txt) !== -1) : todas;
-    acOpcoes = combinam;
-    let itens = combinam.map((f,i)=>{
-      const nome = txt ? esc(f).replace(esc(txt), '<b>' + esc(txt) + '</b>') : esc(f);
-      return `<div class="ac-item" onmousedown="escolherLoja('${idInput}',${i})">🏬 ${nome}</div>`;
-    }).join('');
-    if (txt && todas.indexOf(txt) === -1){
-      itens += `<div class="ac-item ac-criar" onmousedown="criarLojaInline('${idInput}')">➕ Criar nova filial "${esc(txt)}"</div>`;
-    }
-    box.innerHTML = itens;
-    box.style.display = itens ? 'block' : 'none';
-  };
-  inp.addEventListener('input', render);
-  inp.addEventListener('focus', render);
-  inp.addEventListener('blur', ()=> setTimeout(()=>{ box.style.display = 'none'; }, 200));
-  inp.addEventListener('keydown', e=>{ if (e.key === 'Escape' || e.key === 'Enter') box.style.display = 'none'; });
-}
-function escolherLoja(idInput, i){
-  document.getElementById(idInput).value = acOpcoes[i] || '';
-  document.getElementById('ac_' + idInput).style.display = 'none';
-}
-function criarLojaInline(idInput){
-  const inp = document.getElementById(idInput);
-  const nome = normLoja(inp.value);
-  if (!nome) return;
-  memorizarValores(nome, '', '');
-  inp.value = nome;
-  document.getElementById('ac_' + idInput).style.display = 'none';
-  toast('Filial ' + nome + ' criada ✓');
-}
-
-/* ---------- painel de filiais ---------- */
-function abrirFiliais(){
-  renderFiliais();
-  document.getElementById('modalFiliais').classList.add('aberto');
-}
-function fecharFiliais(ev){
-  if (ev && ev.target !== document.getElementById('modalFiliais')) return;
-  document.getElementById('modalFiliais').classList.remove('aberto');
-}
-
-function mapaFiliais_(){
-  const mapa = {};
-  lerCache('miashop_lojas').map(normLoja).filter(Boolean).forEach(f=>{ mapa[f] = mapa[f] || {env:0, rec:0}; });
-  registros.forEach(r=>{
-    if (r.lojaOrigem){ (mapa[r.lojaOrigem] = mapa[r.lojaOrigem] || {env:0,rec:0}).env++; }
-    if (r.lojaDestino){ (mapa[r.lojaDestino] = mapa[r.lojaDestino] || {env:0,rec:0}).rec++; }
-  });
-  return mapa;
-}
-
-function renderFiliais(){
-  const mapa = mapaFiliais_();
-  const nomes = Object.keys(mapa).sort();
-  const alvo = document.getElementById('listaFiliais');
-  if (!nomes.length){
-    alvo.innerHTML = '<div class="rel-vazio">Nenhuma filial ainda — crie acima ou faça um lançamento.</div>';
-    return;
+function salvar_(d) {
+  // Trava: impede que duas requisições gravem ao mesmo tempo (evita duplicação
+  // quando o celular reenvia por falha de conexão)
+  const trava = LockService.getScriptLock();
+  trava.waitLock(30000);
+  try {
+    return salvarComTrava_(d);
+  } finally {
+    trava.releaseLock();
   }
-  alvo.innerHTML = nomes.map(f=>{
-    const m = mapa[f];
-    return `<div class="fil-item">
-      <div>
-        <div class="fil-nome">${esc(f)}</div>
-        <div class="fil-info">${m.env} envio(s) · ${m.rec} recebimento(s)</div>
-      </div>
-      <div class="fil-acoes">
-        <button class="fil-btn ren" onclick="renomearFilialUI('${esc(f)}')" title="Mudar o nome em todos os lançamentos">✎ Renomear</button>
-        <button class="fil-btn uni" onclick="unificarFilialUI('${esc(f)}')" title="Transferir todos os lançamentos para outra filial">⇄ Unificar</button>
-        <button class="fil-btn exc" onclick="excluirFilialUI('${esc(f)}')" title="Excluir (apenas sem lançamentos)">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
 }
 
-function criarFilial(){
-  const nome = normLoja(document.getElementById('novaFilial').value);
-  if (!nome) return toast('Digite o nome da filial.', true);
-  memorizarValores(nome, '', '');
-  document.getElementById('novaFilial').value = '';
-  renderFiliais();
-  atualizarSugestoes();
-  toast('Filial ' + nome + ' criada — já aparece nas sugestões dos lançamentos.');
-}
+function salvarComTrava_(d) {
+  const aba = getAba_();
 
-function renomearFilialUI(de){
-  const novo = prompt('Novo nome para a filial ' + de + ':\n(todos os lançamentos dela passarão para o novo nome)', de);
-  if (novo === null) return;
-  aplicarRenomeacao_(de, normLoja(novo));
-}
-
-function unificarFilialUI(de){
-  const outras = Object.keys(mapaFiliais_()).filter(f=>f!==de).sort().join(', ');
-  const para = prompt('Transferir TODOS os lançamentos de ' + de + ' para qual filial?\n\nFiliais existentes: ' + (outras || 'nenhuma'), '');
-  if (para === null) return;
-  aplicarRenomeacao_(de, normLoja(para));
-}
-
-async function aplicarRenomeacao_(de, para){
-  if (!para) return toast('Digite o nome da filial de destino.', true);
-  if (de === para) return toast('O nome é o mesmo — nada a fazer.');
-  const mapa = mapaFiliais_();
-  const qtde = (mapa[de] ? mapa[de].env + mapa[de].rec : 0);
-  const existe = !!mapa[para];
-  if (!confirm((existe ? 'UNIFICAR ' + de + ' com ' + para : 'RENOMEAR ' + de + ' para ' + para) +
-      '?\n\n' + qtde + ' movimento(s) de ' + de + ' passarão para ' + para + '.\nIsso altera a planilha e vale para todos os computadores.')) return;
-  try{
-    toast('Aplicando na planilha...');
-    const r = await api({acao:'renomearFilial', de:de, para:para});
-    if(!r.ok) throw new Error(r.erro || 'Falha ao renomear.');
-    // aplica localmente
-    registros.forEach(x=>{
-      if (x.lojaOrigem === de) x.lojaOrigem = para;
-      if (x.lojaDestino === de) x.lojaDestino = para;
-    });
-    gravarCacheRegistros_();
-    const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean));
-    lojas.delete(de); lojas.add(para);
-    gravarCache('miashop_lojas', lojas);
-    atualizarSugestoes();
-    renderLista();
-    if (document.getElementById('painelRel').classList.contains('ativo')) renderRelatorio();
-    renderFiliais();
-    toast((r.alterados||0) + ' movimento(s) transferidos de ' + de + ' para ' + para + ' ✓');
-  }catch(e){ toast('Erro: ' + e.message, true); }
-}
-
-function excluirFilialUI(nome){
-  const m = mapaFiliais_()[nome];
-  if (m && (m.env || m.rec)){
-    alert('A filial ' + nome + ' tem ' + (m.env + m.rec) + ' movimento(s).\n\nPara excluí-la, primeiro use ⇄ Unificar para transferir os lançamentos para outra filial.');
-    return;
+  // Idempotência: o ID vem gerado do aparelho. Se ele já está na planilha,
+  // este é um REENVIO do mesmo lançamento — responde OK sem gravar de novo.
+  if (d.id && acharLinha_(aba, d.id) !== -1) {
+    return { ok: true, id: d.id, jaExistia: true };
   }
-  if (!confirm('Excluir a filial ' + nome + ' das sugestões?')) return;
-  const lojas = new Set(lerCache('miashop_lojas').map(normLoja).filter(Boolean));
-  lojas.delete(nome);
-  gravarCache('miashop_lojas', lojas);
-  atualizarSugestoes();
-  renderFiliais();
-  toast('Filial ' + nome + ' excluída.');
+
+  let fotoUrl = d.fotoUrl || '';   // reenvio de sincronização mantém o link da foto
+  if (d.fotoBase64) {
+    fotoUrl = salvarFoto_(d.fotoBase64, d.lojaOrigem, d.lojaDestino);
+  }
+
+  const id = d.id || Utilities.getUuid();
+  aba.appendRow([
+    id,
+    d.data || '',
+    normLoja_(d.lojaOrigem),
+    normLoja_(d.lojaDestino),
+    d.codigos || '',
+    d.produtos || '',
+    d.quantidades || '',
+    d.valores || '',
+    Number(d.valorCompra) || 0,
+    Number(d.valorUber) || 0,
+    d.numSequencia || '',
+    d.numTransferencia || '', // Nº Transf. Estoque (pode preencher agora ou depois, pela lista)
+    d.formaPagamento || '',
+    d.observacoes || '',
+    fotoUrl,
+    Utilities.formatDate(new Date(), 'GMT-3', 'dd/MM/yyyy HH:mm:ss')
+  ]);
+
+  return { ok: true, id: id, fotoUrl: fotoUrl };
 }
 
-/* ---------- toast ---------- */
-let toastTimer;
-function toast(msg, erro){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = erro ? 'erro show' : 'show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> t.className='', 3800);
+function editar_(d) {
+  if (!d.id) return { ok: false, erro: 'ID não informado.' };
+  const aba = getAba_();
+  const linha = acharLinha_(aba, d.id);
+  if (linha === -1) return { ok: false, erro: 'Registro não encontrado.' };
+
+  // Foto: nova substitui; fotoRemover apaga o link; senão mantém a atual
+  let fotoUrl = String(aba.getRange(linha, COL_FOTO).getValue());
+  if (d.fotoBase64) {
+    fotoUrl = salvarFoto_(d.fotoBase64, d.lojaOrigem, d.lojaDestino);
+  } else if (d.fotoRemover) {
+    fotoUrl = '';
+  }
+
+  // Atualiza colunas B a O (2 a 15) — preserva ID e Registrado em
+  aba.getRange(linha, 2, 1, 14).setValues([[
+    d.data || '',
+    normLoja_(d.lojaOrigem),
+    normLoja_(d.lojaDestino),
+    d.codigos || '',
+    d.produtos || '',
+    d.quantidades || '',
+    d.valores || '',
+    Number(d.valorCompra) || 0,
+    Number(d.valorUber) || 0,
+    d.numSequencia || '',
+    d.numTransferencia || '',
+    d.formaPagamento || '',
+    d.observacoes || '',
+    fotoUrl
+  ]]);
+
+  return { ok: true, fotoUrl: fotoUrl };
 }
-</script>
-</body>
-</html>
+
+function listar_() {
+  const aba = getAba_();
+  const ultimaLinha = aba.getLastRow();
+  if (ultimaLinha < 2) return { ok: true, registros: [] };
+
+  const valores = aba.getRange(2, 1, ultimaLinha - 1, CABECALHO.length).getValues();
+  const registros = valores.map(function (l) {
+    return {
+      id:               l[0],
+      data:             formatarData_(l[1]),
+      lojaOrigem:       normLoja_(l[2]),
+      lojaDestino:      normLoja_(l[3]),
+      codigos:          texto_(l[4]),
+      produtos:         texto_(l[5]),
+      quantidades:      texto_(l[6]),
+      valores:          texto_(l[7]),
+      valorCompra:      Number(l[8]) || 0,
+      valorUber:        Number(l[9]) || 0,
+      numSequencia:     String(l[10]),
+      numTransferencia: String(l[11]),
+      formaPagamento:   String(l[12]),
+      observacoes:      String(l[13]),
+      fotoUrl:          String(l[14]),
+      registradoEm:     String(l[15])
+    };
+  }).reverse(); // mais recentes primeiro
+
+  return { ok: true, registros: registros };
+}
+
+function excluir_(id) {
+  if (!id) return { ok: false, erro: 'ID não informado.' };
+  const aba = getAba_();
+  const linha = acharLinha_(aba, id);
+  if (linha === -1) return { ok: false, erro: 'Registro não encontrado.' };
+  aba.deleteRow(linha);
+  return { ok: true };
+}
+
+function atualizarTransf_(id, numero) {
+  if (!id) return { ok: false, erro: 'ID não informado.' };
+  const aba = getAba_();
+  const linha = acharLinha_(aba, id);
+  if (linha === -1) return { ok: false, erro: 'Registro não encontrado.' };
+  aba.getRange(linha, COL_TRANSF).setValue(String(numero || ''));
+  return { ok: true };
+}
+
+// Renomeia/unifica uma filial: troca o nome em TODOS os lançamentos
+// (colunas Loja Origem e Loja Destino) de 'de' para 'para'.
+function renomearFilial_(d) {
+  const de = normLoja_(d.de), para = normLoja_(d.para);
+  if (!de || !para) return { ok: false, erro: 'Informe o nome atual e o novo nome.' };
+  if (de === para) return { ok: true, alterados: 0 };
+  const trava = LockService.getScriptLock();
+  trava.waitLock(30000);
+  try {
+    const aba = getAba_();
+    const total = aba.getLastRow();
+    if (total < 2) return { ok: true, alterados: 0 };
+    const faixa = aba.getRange(2, 3, total - 1, 2); // colunas C (origem) e D (destino)
+    const vals = faixa.getValues();
+    let n = 0;
+    for (let i = 0; i < vals.length; i++) {
+      if (normLoja_(vals[i][0]) === de) { vals[i][0] = para; n++; }
+      if (normLoja_(vals[i][1]) === de) { vals[i][1] = para; n++; }
+    }
+    if (n) faixa.setValues(vals);
+    // aplica também na aba do e-commerce (coluna Loja Saída)
+    const abaE = getAbaEcom_();
+    const totE = abaE.getLastRow();
+    if (totE > 1) {
+      const fxE = abaE.getRange(2, 3, totE - 1, 1);
+      const vE = fxE.getValues();
+      let nE = 0;
+      for (let i = 0; i < vE.length; i++) {
+        if (normLoja_(vE[i][0]) === de) { vE[i][0] = para; nE++; }
+      }
+      if (nE) { fxE.setValues(vE); n += nE; }
+    }
+    return { ok: true, alterados: n };
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/* ========================= UTIL ========================= */
+
+// Padroniza o nome da filial: "vm", "Vm", " VM " → "VM"
+function normLoja_(s) {
+  return String(s || '').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+function acharLinha_(aba, id) {
+  const total = aba.getLastRow();
+  if (total < 2) return -1;
+  const ids = aba.getRange(2, 1, total - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) return i + 2;
+  }
+  return -1;
+}
+
+function formatarData_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, 'GMT-3', 'yyyy-MM-dd');
+  }
+  return String(v);
+}
+
+// Converte com segurança para texto; se o Sheets tiver transformado um
+// código antigo em Date, devolve no formato dd/MM em vez do texto gigante.
+function texto_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, 'GMT-3', 'dd/MM');
+  }
+  return String(v);
+}
+
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
