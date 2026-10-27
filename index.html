@@ -211,6 +211,30 @@ tfoot td.num{text-align:right}
 @media (prefers-reduced-motion: reduce){.spin{animation-duration:2s}#toast{transition:none}}
 .aviso-config{background:#FFF6E5;border:1.5px solid #E8C87A;border-radius:12px;padding:12px 14px;font-size:13.5px;color:#7A5A10;margin-bottom:14px;display:none}
 
+/* ===== Financeiro E-commerce ===== */
+@media(min-width:901px){
+  #listaEcom table{table-layout:fixed;width:100%}
+  #listaEcom th:nth-child(1){width:6.5%}   /* Data */
+  #listaEcom th:nth-child(2){width:9%}     /* Loja */
+  #listaEcom th:nth-child(3){width:8.5%}   /* Pagamento */
+  #listaEcom th:nth-child(4){width:7%}     /* Preço final */
+  #listaEcom th:nth-child(5){width:7%}     /* Custo */
+  #listaEcom th:nth-child(6){width:9%}     /* Confirmação */
+  #listaEcom th:nth-child(7){width:7%}     /* Sequência */
+  #listaEcom th:nth-child(8){width:7%}     /* OC Uber */
+  #listaEcom th:nth-child(9){width:12%}    /* Cliente */
+  #listaEcom th:nth-child(10){width:9.5%}  /* Atendimento */
+  #listaEcom th:nth-child(11){width:10%}   /* ID pedido */
+  #listaEcom th:nth-child(12){width:7.5%}  /* Ações */
+  #listaEcom th{white-space:normal}
+  #listaEcom td{overflow-wrap:anywhere}
+  #listaEcom td.num,#listaEcom td.nowrap{overflow-wrap:normal}
+}
+.chip-conf{font-size:11px;font-weight:800;border-radius:99px;padding:3px 9px;cursor:pointer;border:1.5px solid;white-space:nowrap}
+.chip-conf.ok{background:rgba(10,138,82,.1);border-color:rgba(10,138,82,.45);color:var(--verde)}
+.chip-conf.pend{background:rgba(217,111,30,.08);border-color:rgba(217,111,30,.45);color:var(--laranja-esc)}
+#bannerEcom{display:none;margin-bottom:12px}
+
 /* ===== Relatórios ===== */
 #painelRel .totais{grid-template-columns:repeat(4,1fr)}
 @media(max-width:700px){#painelRel .totais{grid-template-columns:repeat(2,1fr)}}
@@ -258,6 +282,7 @@ tfoot td.num{text-align:right}
   <button class="aba ativa" id="abaNovo" onclick="trocarAba('novo')">+ Novo lançamento</button>
   <button class="aba" id="abaLista" onclick="trocarAba('lista')">Lançamentos</button>
   <button class="aba" id="abaRel" onclick="trocarAba('rel')">Relatórios</button>
+  <button class="aba" id="abaEcom" onclick="trocarAba('ecom')">Financeiro E-commerce</button>
 </nav>
 
 <main>
@@ -421,6 +446,98 @@ tfoot td.num{text-align:right}
     <div id="relComparativo"></div>
   </div>
 </section>
+
+<!-- ==================== FINANCEIRO E-COMMERCE ==================== -->
+<section class="painel" id="painelEcom">
+
+  <div class="cartao">
+    <h2><span class="tag">＋</span> <span id="ecomTituloForm">Nova venda e-commerce</span></h2>
+    <div class="banner-edicao" id="bannerEcom">
+      <span>✎ <b>Editando venda</b> — <span id="bannerEcomInfo"></span></span>
+      <button type="button" onclick="cancelarEdicaoEcom()">Cancelar edição</button>
+    </div>
+    <div class="grade grade-ecom">
+      <div>
+        <label for="eData">Data</label>
+        <input type="date" id="eData">
+      </div>
+      <div class="ac-wrap">
+        <label for="eLoja">Loja saída de produto</label>
+        <input type="text" id="eLoja" autocomplete="off" placeholder="Digite a loja">
+        <div class="ac-lista" id="ac_eLoja"></div>
+      </div>
+      <div>
+        <label for="ePagamento">Forma de pagamento</label>
+        <select id="ePagamento">
+          <option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
+          <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
+        </select>
+      </div>
+      <div>
+        <label for="eConfirmacao">Confirmação de pagamento</label>
+        <select id="eConfirmacao">
+          <option>PENDENTE</option><option>CONFIRMADO</option>
+        </select>
+      </div>
+      <div>
+        <label for="ePrecoFinal">Preço final (R$)</label>
+        <input type="number" id="ePrecoFinal" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
+      </div>
+      <div>
+        <label for="ePrecoCusto">Preço de custo (R$)</label>
+        <input type="number" id="ePrecoCusto" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
+      </div>
+      <div>
+        <label for="eSequencia">Sequência da venda</label>
+        <input type="text" id="eSequencia" autocomplete="off" placeholder="Nº da sequência">
+      </div>
+      <div>
+        <label for="eOcUber">O.C Uber</label>
+        <select id="eOcUber">
+          <option value="">—</option><option>RETIRADA</option><option>XPRESS</option>
+        </select>
+      </div>
+      <div>
+        <label for="eCliente">Cliente</label>
+        <input type="text" id="eCliente" autocomplete="off" placeholder="Nome do cliente">
+      </div>
+      <div>
+        <label for="eAtendimento">Atendimento</label>
+        <input type="text" id="eAtendimento" autocomplete="off" placeholder="Quem atendeu">
+      </div>
+      <div class="meio">
+        <label for="eIdPedido">ID do pedido</label>
+        <input type="text" id="eIdPedido" autocomplete="off" placeholder="Nº / código do pedido">
+      </div>
+    </div>
+    <button class="btn btn-laranja" id="btnSalvarEcom" style="margin-top:14px" onclick="salvarEcom()">Salvar venda</button>
+  </div>
+
+  <div class="barra-filtros">
+    <input type="date" id="efDataDe" title="Data de" onchange="renderEcom()">
+    <span class="f-sep">até</span>
+    <input type="date" id="efDataAte" title="Data até" onchange="renderEcom()">
+    <select id="efLoja" title="Loja" onchange="renderEcom()"><option value="">Loja: todas</option></select>
+    <select id="efPagamento" title="Forma de pagamento" onchange="renderEcom()">
+      <option value="">Pagamento: todos</option><option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
+      <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
+    </select>
+    <select id="efConfirmacao" title="Confirmação" onchange="renderEcom()">
+      <option value="">Confirmação: todas</option><option>CONFIRMADO</option><option>PENDENTE</option>
+    </select>
+    <button class="f-btn" title="Limpar filtros" onclick="limparFiltrosEcom()">✕ Limpar</button>
+    <span class="f-espaco"></span>
+    <button class="f-btn" title="Recarregar da planilha" onclick="carregarEcom(true)">↺</button>
+  </div>
+
+  <div class="totais">
+    <div class="total-box total-compra"><small>Preço final</small><b id="eTotFinal">R$ 0,00</b></div>
+    <div class="total-box total-uber"><small>Preço de custo</small><b id="eTotCusto">R$ 0,00</b></div>
+    <div class="total-box total-geral"><small>Diferença (final − custo)</small><b id="eTotLucro">R$ 0,00</b></div>
+  </div>
+
+  <div id="listaEcom"><div class="carregando"><span class="spin"></span>Carregando vendas...</div></div>
+</section>
 </main>
 
 <div class="modal-fundo" id="modalFiliais" onclick="fecharFiliais(event)">
@@ -475,6 +592,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('data').value = hojeISO();
   ligarAutocompleteLoja('lojaOrigem');
   ligarAutocompleteLoja('lojaDestino');
+  ligarAutocompleteLoja('eLoja');
+  document.getElementById('eData').value = hojeISO();
   addItem();
   memorizarValores(); // carrega lojas/pagamentos já salvos neste navegador
   carregarRegistros();
@@ -483,13 +602,19 @@ document.addEventListener('DOMContentLoaded', () => {
 function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function trocarAba(qual){
+  ['Novo','Lista','Rel','Ecom'].forEach(p=>{
+    document.getElementById('painel'+p).classList.toggle('ativo', qual===p.toLowerCase().replace('novo','novo'));
+  });
   document.getElementById('painelNovo').classList.toggle('ativo', qual==='novo');
   document.getElementById('painelLista').classList.toggle('ativo', qual==='lista');
   document.getElementById('painelRel').classList.toggle('ativo', qual==='rel');
+  document.getElementById('painelEcom').classList.toggle('ativo', qual==='ecom');
   document.getElementById('abaNovo').classList.toggle('ativa', qual==='novo');
   document.getElementById('abaLista').classList.toggle('ativa', qual==='lista');
   document.getElementById('abaRel').classList.toggle('ativa', qual==='rel');
+  document.getElementById('abaEcom').classList.toggle('ativa', qual==='ecom');
   if (qual==='rel') renderRelatorio();
+  if (qual==='ecom') carregarEcom();
 }
 
 /* ---------- sugestões (lojas e pagamentos já usados) ---------- */
@@ -1357,6 +1482,219 @@ function exportarRelPDF(){
     startY:y+2, styles:{fontSize:8}, headStyles:{fillColor:[36,26,18]} });
 
   doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
+}
+
+/* ---------- FINANCEIRO E-COMMERCE ---------- */
+let registrosEcom = [];
+let editandoEcomId = null;
+let ecomCarregado = false;
+
+function lerCacheEcom_(){ try { return JSON.parse(localStorage.getItem('miashop_ecom')) || null; } catch(e){ return null; } }
+function gravarCacheEcom_(){ try { localStorage.setItem('miashop_ecom', JSON.stringify(registrosEcom)); } catch(e){} }
+
+function ordenarEcom_(){
+  registrosEcom.forEach(r=>{ r.loja = normLoja(r.loja); });
+  registrosEcom.sort((a,b)=> a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
+}
+
+async function carregarEcom(forcar){
+  if (API_URL.indexOf('COLE_AQUI') === 0) return;
+  const cache = lerCacheEcom_();
+  if (cache && cache.length){
+    registrosEcom = cache; ordenarEcom_(); renderEcom();
+  }
+  if (ecomCarregado && !forcar) return; // já atualizado nesta sessão
+  try{
+    const r = await api({acao:'listarEcom'});
+    if(!r.ok) throw new Error(r.erro || 'Falha ao listar.');
+    registrosEcom = r.registros || [];
+    ordenarEcom_(); gravarCacheEcom_(); renderEcom();
+    ecomCarregado = true;
+  }catch(e){
+    if (!(cache && cache.length)){
+      document.getElementById('listaEcom').innerHTML =
+        '<div class="vazio"><b>Não foi possível carregar</b>'+ e.message +'</div>';
+    } else toast('⚠️ Sem conexão — lista de vendas pode estar desatualizada.', true);
+  }
+}
+
+function filtrarEcom_(){
+  const de = document.getElementById('efDataDe').value;
+  const ate = document.getElementById('efDataAte').value;
+  const lj = document.getElementById('efLoja').value;
+  const pg = document.getElementById('efPagamento').value;
+  const cf = document.getElementById('efConfirmacao').value;
+  return registrosEcom.filter(r=>{
+    if (de && r.data < de) return false;
+    if (ate && r.data > ate) return false;
+    if (lj && r.loja !== lj) return false;
+    if (pg && r.pagamento !== pg) return false;
+    if (cf && r.confirmacao !== cf) return false;
+    return true;
+  });
+}
+function limparFiltrosEcom(){
+  ['efDataDe','efDataAte','efLoja','efPagamento','efConfirmacao'].forEach(id=>document.getElementById(id).value='');
+  renderEcom();
+}
+
+function renderEcom(){
+  // filtro de loja com as lojas das vendas
+  const lojas = [...new Set(registrosEcom.map(r=>r.loja).filter(Boolean))].sort();
+  preencherSelect('efLoja', lojas, 'Loja: todas');
+
+  const dados = filtrarEcom_();
+  let tF=0, tC=0;
+  dados.forEach(r=>{ tF+=r.precoFinal; tC+=r.precoCusto; });
+  document.getElementById('eTotFinal').textContent = brl(tF);
+  document.getElementById('eTotCusto').textContent = brl(tC);
+  document.getElementById('eTotLucro').textContent = brl(tF - tC);
+
+  const alvo = document.getElementById('listaEcom');
+  if (!dados.length){
+    alvo.innerHTML = '<div class="vazio"><b>Nenhuma venda encontrada</b>Registre uma venda acima ou ajuste os filtros.</div>';
+    return;
+  }
+  const linhas = dados.map(r=>`
+    <tr>
+      <td class="nowrap">${dataBR(r.data)}</td>
+      <td>${esc(r.loja)}</td>
+      <td>${esc(r.pagamento) || '—'}</td>
+      <td class="num" style="color:var(--azul)">${brl(r.precoFinal)}</td>
+      <td class="num">${brl(r.precoCusto)}</td>
+      <td><button class="chip-conf ${r.confirmacao==='CONFIRMADO'?'ok':'pend'}" title="Apertar para alternar"
+        onclick="alternarConfirmacao('${r.id}')">${r.confirmacao==='CONFIRMADO'?'✓ CONFIRMADO':'⏳ PENDENTE'}</button></td>
+      <td>${esc(r.sequencia) || '—'}</td>
+      <td>${esc(r.ocUber) || '—'}</td>
+      <td>${esc(r.cliente) || '—'}</td>
+      <td>${esc(r.atendimento) || '—'}</td>
+      <td>${esc(r.idPedido) || '—'}</td>
+      <td class="nowrap">
+        <button class="acao-btn ed" title="Editar" onclick="iniciarEdicaoEcom('${r.id}')">✎</button>
+        <button class="acao-btn ex" title="Apagar" onclick="excluirEcom('${r.id}')">🗑</button>
+      </td>
+    </tr>`).join('');
+  alvo.innerHTML = `
+  <div class="tabela-wrap">
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Loja saída</th><th>Pagamento</th><th>Preço final</th><th>Custo</th><th>Confirmação</th>
+        <th>Seq. venda</th><th>O.C Uber</th><th>Cliente</th><th>Atendimento</th><th>ID pedido</th><th>Ações</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+      <tfoot><tr>
+        <td colspan="3" style="text-align:right">TOTAIS (${dados.length} venda${dados.length>1?'s':''})</td>
+        <td class="num">${brl(tF)}</td>
+        <td class="num">${brl(tC)}</td>
+        <td colspan="7"></td>
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+
+function payloadEcom_(){
+  return {
+    data: document.getElementById('eData').value,
+    loja: normLoja(document.getElementById('eLoja').value),
+    pagamento: document.getElementById('ePagamento').value,
+    precoFinal: parseFloat(document.getElementById('ePrecoFinal').value) || 0,
+    precoCusto: parseFloat(document.getElementById('ePrecoCusto').value) || 0,
+    confirmacao: document.getElementById('eConfirmacao').value,
+    sequencia: document.getElementById('eSequencia').value.trim(),
+    ocUber: document.getElementById('eOcUber').value,
+    cliente: document.getElementById('eCliente').value.trim(),
+    atendimento: document.getElementById('eAtendimento').value.trim(),
+    idPedido: document.getElementById('eIdPedido').value.trim()
+  };
+}
+
+async function salvarEcom(){
+  if (API_URL.indexOf('COLE_AQUI') === 0) return toast('Configure a URL do Apps Script no index.html.', true);
+  const p = payloadEcom_();
+  if (!p.data) return toast('Informe a data.', true);
+  if (!p.loja) return toast('Informe a loja de saída.', true);
+  const btn = document.getElementById('btnSalvarEcom');
+  btn.disabled = true; btn.textContent = editandoEcomId ? 'Atualizando...' : 'Salvando...';
+  p.acao = editandoEcomId ? 'editarEcom' : 'salvarEcom';
+  p.id = editandoEcomId || novoUuid_();
+  try{
+    const r = await api(p);
+    if(!r.ok) throw new Error(r.erro || 'Falha ao salvar.');
+    if (editandoEcomId){
+      const i = registrosEcom.findIndex(x=>x.id===editandoEcomId);
+      if (i !== -1) registrosEcom[i] = Object.assign({}, registrosEcom[i], p);
+    } else {
+      registrosEcom.unshift(Object.assign({registradoEm:''}, p));
+    }
+    memorizarValores(p.loja, '', '');
+    ordenarEcom_(); gravarCacheEcom_(); renderEcom();
+    toast(editandoEcomId ? 'Venda atualizada ✓' : 'Venda salva com sucesso ✓');
+    cancelarEdicaoEcom(true);
+    limparFormularioEcom_();
+  }catch(e){ toast('Erro: ' + e.message, true); }
+  finally{ btn.disabled = false; btn.textContent = editandoEcomId ? 'Atualizar venda' : 'Salvar venda'; }
+}
+
+function limparFormularioEcom_(){
+  ['eLoja','ePrecoFinal','ePrecoCusto','eSequencia','eCliente','eAtendimento','eIdPedido'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('eData').value = hojeISO();
+  document.getElementById('ePagamento').selectedIndex = 0;
+  document.getElementById('eConfirmacao').selectedIndex = 0;
+  document.getElementById('eOcUber').selectedIndex = 0;
+}
+
+function iniciarEdicaoEcom(id){
+  const r = registrosEcom.find(x=>x.id===id);
+  if(!r) return;
+  editandoEcomId = id;
+  document.getElementById('eData').value = r.data;
+  document.getElementById('eLoja').value = r.loja;
+  document.getElementById('ePagamento').value = r.pagamento || 'PAGALI';
+  document.getElementById('ePrecoFinal').value = r.precoFinal || '';
+  document.getElementById('ePrecoCusto').value = r.precoCusto || '';
+  document.getElementById('eConfirmacao').value = r.confirmacao || 'PENDENTE';
+  document.getElementById('eSequencia').value = r.sequencia;
+  document.getElementById('eOcUber').value = r.ocUber || '';
+  document.getElementById('eCliente').value = r.cliente;
+  document.getElementById('eAtendimento').value = r.atendimento;
+  document.getElementById('eIdPedido').value = r.idPedido;
+  document.getElementById('bannerEcom').style.display = 'flex';
+  document.getElementById('bannerEcomInfo').textContent = dataBR(r.data) + ' · ' + r.loja + (r.cliente ? ' · ' + r.cliente : '');
+  document.getElementById('btnSalvarEcom').textContent = 'Atualizar venda';
+  window.scrollTo({top:0});
+}
+
+function cancelarEdicaoEcom(silencioso){
+  editandoEcomId = null;
+  document.getElementById('bannerEcom').style.display = 'none';
+  document.getElementById('btnSalvarEcom').textContent = 'Salvar venda';
+  if (silencioso !== true){ limparFormularioEcom_(); toast('Edição cancelada.'); }
+}
+
+async function alternarConfirmacao(id){
+  const r = registrosEcom.find(x=>x.id===id);
+  if(!r) return;
+  const novo = r.confirmacao === 'CONFIRMADO' ? 'PENDENTE' : 'CONFIRMADO';
+  try{
+    const resp = await api({acao:'editarEcom', id:id, data:r.data, loja:r.loja, pagamento:r.pagamento,
+      precoFinal:r.precoFinal, precoCusto:r.precoCusto, confirmacao:novo, sequencia:r.sequencia,
+      ocUber:r.ocUber, cliente:r.cliente, atendimento:r.atendimento, idPedido:r.idPedido});
+    if(!resp.ok) throw new Error(resp.erro || 'Falha ao atualizar.');
+    r.confirmacao = novo;
+    gravarCacheEcom_(); renderEcom();
+    toast('Pagamento marcado como ' + novo + ' ✓');
+  }catch(e){ toast('Erro: ' + e.message, true); }
+}
+
+async function excluirEcom(id){
+  if(!confirm('Apagar esta venda definitivamente da planilha?')) return;
+  try{
+    const r = await api({acao:'excluirEcom', id:id});
+    if(!r.ok) throw new Error(r.erro || 'Falha ao excluir.');
+    registrosEcom = registrosEcom.filter(x=>x.id!==id);
+    gravarCacheEcom_(); renderEcom();
+    toast('Venda apagada.');
+  }catch(e){ toast('Erro: ' + e.message, true); }
 }
 
 /* ---------- autocomplete de filiais no formulário ---------- */
