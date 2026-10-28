@@ -241,6 +241,8 @@ tfoot td.num{text-align:right}
 .th-sort{cursor:pointer;user-select:none;white-space:nowrap}
 .th-sort:hover{text-decoration:underline}
 .th-sort.ativo{color:#FFD9A8}
+.td-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.td-link:hover{background:var(--laranja-claro)}
 .rel-grade{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.rel-grade{grid-template-columns:1fr}}
 .rel-tab{width:100%;border-collapse:collapse;font-size:13px}
@@ -281,8 +283,8 @@ tfoot td.num{text-align:right}
 <nav class="abas">
   <button class="aba ativa" id="abaNovo" onclick="trocarAba('novo')">+ Novo lançamento</button>
   <button class="aba" id="abaLista" onclick="trocarAba('lista')">Lançamentos Uber</button>
-  <button class="aba" id="abaRel" onclick="trocarAba('rel')">Relatórios</button>
   <button class="aba" id="abaEcom" onclick="trocarAba('ecom')">Financeiro E-commerce</button>
+  <button class="aba" id="abaRel" onclick="trocarAba('rel')">Relatórios</button>
 </nav>
 
 <main>
@@ -478,19 +480,9 @@ tfoot td.num{text-align:right}
     <div class="total-box total-geral"><small>Média por Uber</small><b id="rTotMedia">R$ 0,00</b></div>
   </div>
 
-  <div class="rel-grade">
-    <div class="cartao" style="margin-bottom:0">
-      <h2><span class="tag">⬆</span> Uber por filial de ORIGEM (quem enviou)</h2>
-      <div id="relOrigem"></div>
-    </div>
-    <div class="cartao" style="margin-bottom:0">
-      <h2><span class="tag">⬇</span> Uber por filial de DESTINO (quem recebeu)</h2>
-      <div id="relDestino"></div>
-    </div>
-  </div>
-
-  <div class="cartao" style="margin-top:16px">
+  <div class="cartao">
     <h2><span class="tag">⇄</span> Comparativo por filial — enviou × recebeu</h2>
+    <div style="font-size:12px;color:var(--cinza);margin-bottom:10px">Aperte em um número para abrir os lançamentos correspondentes.</div>
     <div id="relComparativo"></div>
   </div>
 </section>
@@ -507,6 +499,7 @@ tfoot td.num{text-align:right}
       <option value="">Pagamento: todos</option><option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
       <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
     </select>
+    <select id="efCanal" title="Venda realizada através" onchange="renderEcom()"><option value="">Através: todas</option></select>
     <select id="efConfirmacao" title="Confirmação" onchange="renderEcom()">
       <option value="">Confirmação: todas</option><option>CONFIRMADO</option><option>PENDENTE</option>
     </select>
@@ -1391,7 +1384,7 @@ function agruparPorFilial(dados){
 }
 
 /* ---- ordenação ao apertar no nome da coluna (padrão: Valor Uber, do maior para o menor) ---- */
-const relSort = { orig:{c:2,d:1}, dest:{c:2,d:1}, comp:{c:-1,d:1} };
+const relSort = { comp:{c:-1,d:1} };
 function sortRel(tab, col){
   const s = relSort[tab];
   if (s.c === col) s.d = -s.d; else { s.c = col; s.d = 1; }
@@ -1410,25 +1403,18 @@ function ordenar_(linhas, s){
   });
 }
 
-function tabelaRel_(tab, linhas, cor, rotuloQtd){
-  // linhas: [[filial, qtd, valorUber, valorProdutos], ...]
-  if (!linhas.length) return '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
-  linhas = ordenar_(linhas, relSort[tab]);
-  const maxVal = Math.max(...linhas.map(l=>l[2]), 1);
-  let tq=0, tv=0, tp=0;
-  const corpo = linhas.map(l=>{
-    tq+=l[1]; tv+=l[2]; tp+=l[3];
-    const larg = Math.max(3, Math.round(l[2]/maxVal*100));
-    return `<tr><td>${esc(l[0])}<span class="barra ${cor}" style="width:${larg}%"></span></td>
-      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td>
-      <td class="num" style="color:var(--verde)">${brl(l[3])}</td>
-      <td class="num">${brl(l[1] ? l[2]/l[1] : 0)}</td></tr>`;
-  }).join('');
-  return `<table class="rel-tab"><thead><tr>
-      ${thSort_(tab,0,'Filial')}${thSort_(tab,1,rotuloQtd,1)}${thSort_(tab,2,'Valor Uber',1)}${thSort_(tab,3,'Valor produtos',1)}${thSort_(tab,4,'Média/Uber',1)}
-    </tr></thead>
-    <tbody>${corpo}</tbody>
-    <tfoot><tr><td>TOTAL</td><td class="num">${tq}</td><td class="num">${brl(tv)}</td><td class="num">${brl(tp)}</td><td class="num">${brl(tq ? tv/tq : 0)}</td></tr></tfoot></table>`;
+let compFiliais = [];
+function verLancFilial(i, tipo){
+  const f = compFiliais[i];
+  if (!f) return;
+  ['fDataDe','fDataAte','fOrigem','fDestino'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fDataDe').value = document.getElementById('rDataDe').value;
+  document.getElementById('fDataAte').value = document.getElementById('rDataAte').value;
+  if (tipo === 'origem') document.getElementById('fOrigem').value = f;
+  else document.getElementById('fDestino').value = f;
+  trocarAba('lista');
+  renderLista();
+  toast('Lançamentos de ' + f + (tipo === 'origem' ? ' como ORIGEM (enviou)' : ' como DESTINO (recebeu)'));
 }
 
 function renderRelatorio(){
@@ -1443,12 +1429,6 @@ function renderRelatorio(){
 
   const mapa = agruparPorFilial(dados);
   const filiais = Object.keys(mapa);
-
-  const linhasOrig = filiais.filter(f=>mapa[f].qtdEnv).map(f=>[f, mapa[f].qtdEnv, mapa[f].valEnv, mapa[f].prodEnv]);
-  const linhasDest = filiais.filter(f=>mapa[f].qtdRec).map(f=>[f, mapa[f].qtdRec, mapa[f].valRec, mapa[f].prodRec]);
-
-  document.getElementById('relOrigem').innerHTML = tabelaRel_('orig', linhasOrig, '', 'Ubers enviados');
-  document.getElementById('relDestino').innerHTML = tabelaRel_('dest', linhasDest, 'azul', 'Ubers recebidos');
 
   // Comparativo enviou × recebeu
   // colunas: 0 filial · 1 ubers env · 2 valor uber env · 3 produtos env · 4 ubers rec · 5 valor uber rec · 6 produtos rec · 7 diferença uber
@@ -1465,12 +1445,15 @@ function renderRelatorio(){
     document.getElementById('relComparativo').innerHTML = '<div class="rel-vazio">Nenhum lançamento no período/filtro.</div>';
     return;
   }
+  compFiliais = comp.map(l=>l[0]);
   let tqE=0,tvE=0,tpE=0,tqR=0,tvR=0,tpR=0;
-  const corpoC = comp.map(l=>{
+  const corpoC = comp.map((l,i)=>{
     tqE+=l[1]; tvE+=l[2]; tpE+=l[3]; tqR+=l[4]; tvR+=l[5]; tpR+=l[6];
+    const tdE = `class="num td-link" title="Abrir lançamentos enviados por ${esc(l[0])}" onclick="verLancFilial(${i},'origem')"`;
+    const tdR = `class="num td-link" title="Abrir lançamentos recebidos por ${esc(l[0])}" onclick="verLancFilial(${i},'destino')"`;
     return `<tr><td><b>${esc(l[0])}</b></td>
-      <td class="num">${l[1]}</td><td class="num">${brl(l[2])}</td><td class="num" style="color:var(--verde)">${brl(l[3])}</td>
-      <td class="num">${l[4]}</td><td class="num">${brl(l[5])}</td><td class="num" style="color:var(--verde)">${brl(l[6])}</td>
+      <td ${tdE}>${l[1]}</td><td ${tdE}>${brl(l[2])}</td><td ${tdE} style="color:var(--verde)">${brl(l[3])}</td>
+      <td ${tdR}>${l[4]}</td><td ${tdR}>${brl(l[5])}</td><td ${tdR} style="color:var(--verde)">${brl(l[6])}</td>
       <td class="num" style="color:${l[7]>0?'var(--laranja-esc)':l[7]<0?'var(--azul)':'var(--cinza)'}">${l[7]>0?'enviou +':l[7]<0?'recebeu +':''}${brl(Math.abs(l[7]))}</td></tr>`;
   }).join('');
   document.getElementById('relComparativo').innerHTML =
@@ -1488,46 +1471,30 @@ function dadosRelExport_(){
   const dados = filtrarRel();
   const mapa = agruparPorFilial(dados);
   const filiais = Object.keys(mapa);
-  const mk = (f, m, env) => env
-    ? [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdEnv ? m.valEnv/m.qtdEnv : 0]
-    : [f, m.qtdRec, m.valRec, m.prodRec, m.qtdRec ? m.valRec/m.qtdRec : 0];
-  const orig  = ordenar_(filiais.filter(f=>mapa[f].qtdEnv).map(f=>mk(f, mapa[f], true)),  relSort.orig);
-  const destl = ordenar_(filiais.filter(f=>mapa[f].qtdRec).map(f=>mk(f, mapa[f], false)), relSort.dest);
   let comp = filiais.map(f=>{const m=mapa[f]; return [f, m.qtdEnv, m.valEnv, m.prodEnv, m.qtdRec, m.valRec, m.prodRec, m.valEnv-m.valRec];});
   comp = relSort.comp.c === -1 ? comp.sort((a,b)=>((b[2]+b[5])-(a[2]+a[5]))*relSort.comp.d) : ordenar_(comp, relSort.comp);
   const periodo = (document.getElementById('rDataDe').value ? dataBR(document.getElementById('rDataDe').value) : 'início') +
                   ' até ' + (document.getElementById('rDataAte').value ? dataBR(document.getElementById('rDataAte').value) : 'hoje');
   const filtroTxt = 'Período: ' + periodo +
     (document.getElementById('rFilial').value ? ' | Filial: ' + document.getElementById('rFilial').value : '');
-  return { dados, orig, destl, comp, filtroTxt };
+  return { dados, comp, filtroTxt };
 }
 
 function exportarRelExcel(){
-  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
+  const {dados, comp, filtroTxt} = dadosRelExport_();
   const wb = XLSX.utils.book_new();
   const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
-
-  const aoaO = [['RELATÓRIO DE UBER POR FILIAL DE ORIGEM (quem enviou)'],[filtroTxt],[],
-    ['Filial','Ubers enviados','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
-    ...orig, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
-  const aoaD = [['RELATÓRIO DE UBER POR FILIAL DE DESTINO (quem recebeu)'],[filtroTxt],[],
-    ['Filial','Ubers recebidos','Valor Uber (R$)','Valor produtos (R$)','Média por Uber (R$)'],
-    ...destl, [], ['TOTAL', somaQ, somaV, somaP, somaQ?somaV/somaQ:0]];
-  const aoaC = [['COMPARATIVO POR FILIAL — ENVIOU × RECEBEU'],[filtroTxt],[],
+  const aoaC = [['COMPARATIVO POR FILIAL — ENVIOU × RECEBEU'],[filtroTxt],
+    ['Total: ' + somaQ + ' Uber(s) · Uber R$ ' + somaV.toFixed(2) + ' · produtos R$ ' + somaP.toFixed(2)],[],
     ['Filial','Ubers enviados','Valor Uber enviado (R$)','Produtos enviados (R$)','Ubers recebidos','Valor Uber recebido (R$)','Produtos recebidos (R$)','Diferença Uber (R$)'],
     ...comp];
-
-  const wsO = XLSX.utils.aoa_to_sheet(aoaO); wsO['!cols']=[{wch:22},{wch:15},{wch:16},{wch:18},{wch:18}];
-  const wsD = XLSX.utils.aoa_to_sheet(aoaD); wsD['!cols']=[{wch:22},{wch:16},{wch:16},{wch:18},{wch:18}];
   const wsC = XLSX.utils.aoa_to_sheet(aoaC); wsC['!cols']=[{wch:22},{wch:14},{wch:19},{wch:19},{wch:15},{wch:20},{wch:19},{wch:17}];
-  XLSX.utils.book_append_sheet(wb, wsO, 'Por Origem');
-  XLSX.utils.book_append_sheet(wb, wsD, 'Por Destino');
   XLSX.utils.book_append_sheet(wb, wsC, 'Comparativo');
   XLSX.writeFile(wb, 'Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.xlsx');
 }
 
 function exportarRelPDF(){
-  const {dados, orig, destl, comp, filtroTxt} = dadosRelExport_();
+  const {dados, comp, filtroTxt} = dadosRelExport_();
   const somaQ = dados.length, somaV = dados.reduce((s,r)=>s+r.valorUber,0), somaP = dados.reduce((s,r)=>s+totalProdutos(r),0);
   const doc = new jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
   doc.setFont('helvetica','bold'); doc.setFontSize(14);
@@ -1537,23 +1504,10 @@ function exportarRelPDF(){
   doc.text(filtroTxt + '  |  Gerado em ' + new Date().toLocaleString('pt-BR'), 14, 20);
   doc.text('Total: ' + somaQ + ' Uber(s) · Uber ' + brl(somaV) + ' · produtos ' + brl(somaP) + ' · média ' + brl(somaQ?somaV/somaQ:0) + '/Uber', 14, 25);
 
-  const fmt = l => [l[0], String(l[1]), brl(l[2]), brl(l[3]), brl(l[4])];
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de ORIGEM (quem enviou)', 14, 33);
-  doc.autoTable({ head:[['Filial','Ubers enviados','Valor Uber','Valor produtos','Média/Uber']],
-    body: orig.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
-    startY:35, styles:{fontSize:8.5}, headStyles:{fillColor:[245,134,52]}, footStyles:{fillColor:[36,26,18]} });
-
-  let y = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Por filial de DESTINO (quem recebeu)', 14, y);
-  doc.autoTable({ head:[['Filial','Ubers recebidos','Valor Uber','Valor produtos','Média/Uber']],
-    body: destl.map(fmt), foot:[['TOTAL', String(somaQ), brl(somaV), brl(somaP), brl(somaQ?somaV/somaQ:0)]],
-    startY:y+2, styles:{fontSize:8.5}, headStyles:{fillColor:[21,73,107]}, footStyles:{fillColor:[36,26,18]} });
-
-  y = doc.lastAutoTable.finalY + 10;
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Comparativo — enviou × recebeu', 14, y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Comparativo — enviou × recebeu', 14, 33);
   doc.autoTable({ head:[['Filial','Ubers env.','Uber env.','Produtos env.','Ubers rec.','Uber rec.','Produtos rec.','Diferença Uber']],
     body: comp.map(l=>[l[0], String(l[1]), brl(l[2]), brl(l[3]), String(l[4]), brl(l[5]), brl(l[6]), (l[7]>0?'enviou +':l[7]<0?'recebeu +':'') + brl(Math.abs(l[7]))]),
-    startY:y+2, styles:{fontSize:8}, headStyles:{fillColor:[36,26,18]} });
+    startY:35, styles:{fontSize:8.5}, headStyles:{fillColor:[245,134,52]} });
 
   doc.save('Miashop_Relatorio_Uber_Filiais_' + hojeISO() + '.pdf');
 }
@@ -1598,17 +1552,19 @@ function filtrarEcom_(){
   const lj = document.getElementById('efLoja').value;
   const pg = document.getElementById('efPagamento').value;
   const cf = document.getElementById('efConfirmacao').value;
+  const cv = document.getElementById('efCanal').value;
   return registrosEcom.filter(r=>{
     if (de && r.data < de) return false;
     if (ate && r.data > ate) return false;
     if (lj && r.loja !== lj) return false;
     if (pg && r.pagamento !== pg) return false;
     if (cf && r.confirmacao !== cf) return false;
+    if (cv && (r.canal || r.ocUber || '') !== cv) return false;
     return true;
   });
 }
 function limparFiltrosEcom(){
-  ['efDataDe','efDataAte','efLoja','efPagamento','efConfirmacao'].forEach(id=>document.getElementById(id).value='');
+  ['efDataDe','efDataAte','efLoja','efPagamento','efCanal','efConfirmacao'].forEach(id=>document.getElementById(id).value='');
   renderEcom();
 }
 
@@ -1616,6 +1572,8 @@ function renderEcom(){
   // filtro de loja com as lojas das vendas
   const lojas = [...new Set(registrosEcom.map(r=>r.loja).filter(Boolean))].sort();
   preencherSelect('efLoja', lojas, 'Loja: todas');
+  const canais = [...new Set(registrosEcom.map(r=>r.canal || r.ocUber).filter(Boolean))].sort();
+  preencherSelect('efCanal', canais, 'Através: todas');
 
   const dados = filtrarEcom_();
   let tF=0, tC=0;
