@@ -233,6 +233,7 @@ tfoot td.num{text-align:right}
 .chip-conf{font-size:11px;font-weight:800;border-radius:99px;padding:3px 9px;cursor:pointer;border:1.5px solid;white-space:nowrap}
 .chip-conf.ok{background:rgba(10,138,82,.1);border-color:rgba(10,138,82,.45);color:var(--verde)}
 .chip-conf.pend{background:rgba(217,111,30,.08);border-color:rgba(217,111,30,.45);color:var(--laranja-esc)}
+.chip-conf.vazio{background:var(--fundo);border-color:var(--linha);color:var(--cinza);min-width:34px}
 #bannerEcom{display:none;margin-bottom:12px}
 
 /* ===== Relatórios ===== */
@@ -323,6 +324,7 @@ tfoot td.num{text-align:right}
       <div>
         <label for="ePagamento">Forma de pagamento</label>
         <select id="ePagamento">
+          <option value="">— Selecione —</option>
           <option>PAGALI</option><option>PGTO LOJA</option><option>SHOPEE</option>
           <option>MERCADO LIVRE</option><option>HOLERITE</option><option>BOLETO</option><option>PIX</option>
         </select>
@@ -330,6 +332,7 @@ tfoot td.num{text-align:right}
       <div>
         <label for="eConfirmacao">Confirmação de pagamento</label>
         <select id="eConfirmacao">
+          <option value="">— Selecione —</option>
           <option>PENDENTE</option><option>CONFIRMADO</option>
         </select>
       </div>
@@ -1594,8 +1597,8 @@ function renderEcom(){
       <td>${esc(r.pagamento) || '—'}</td>
       <td class="num" style="color:var(--azul)">${brl(r.precoFinal)}</td>
       <td class="num">${brl(r.precoCusto)}</td>
-      <td><button class="chip-conf ${r.confirmacao==='CONFIRMADO'?'ok':'pend'}" title="Apertar para alternar"
-        onclick="alternarConfirmacao('${r.id}')">${r.confirmacao==='CONFIRMADO'?'✓ CONFIRMADO':'⏳ PENDENTE'}</button></td>
+      <td><button class="chip-conf ${r.confirmacao==='CONFIRMADO'?'ok':(r.confirmacao==='PENDENTE'?'pend':'vazio')}" title="Apertar para alternar"
+        onclick="alternarConfirmacao('${r.id}')">${r.confirmacao==='CONFIRMADO'?'✓ CONFIRMADO':(r.confirmacao==='PENDENTE'?'⏳ PENDENTE':'—')}</button></td>
       <td>${esc(r.sequencia) || '—'}</td>
       <td>${esc(r.canal || r.ocUber) || '—'}</td>
       <td>${esc(r.cliente) || '—'}</td>
@@ -1631,8 +1634,8 @@ function iniciarEdicaoEcom(id){
   editandoEcomId = id;
   document.getElementById('data').value = r.data;
   document.getElementById('lojaVenda').value = r.loja || '';
-  document.getElementById('ePagamento').value = r.pagamento || 'PAGALI';
-  document.getElementById('eConfirmacao').value = r.confirmacao || 'PENDENTE';
+  document.getElementById('ePagamento').value = r.pagamento || '';
+  document.getElementById('eConfirmacao').value = r.confirmacao || '';
   document.getElementById('ePrecoFinal').value = r.precoFinal || '';
   document.getElementById('ePrecoCusto').value = r.precoCusto || '';
   document.getElementById('numSequencia').value = r.sequencia || '';
